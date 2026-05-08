@@ -59,6 +59,10 @@
     .ki-time {
       font-size: .72rem; color: #777; flex-shrink: 0;
     }
+    .ki-note {
+      font-size: .68rem; color: #e09060; flex-shrink: 0;
+      max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
     .ki-status-badge {
       font-size: .65rem; font-weight: 700; padding: 2px 7px;
       border-radius: 10px; flex-shrink: 0; border: 1px solid currentColor;
@@ -166,6 +170,7 @@ function renderItems() {
         qty:         item.quantity,
         status:      o.status,
         time:        o.createdAt,
+        note:        item.note || '',
       });
     });
   });
@@ -182,6 +187,7 @@ function renderItems() {
           <span class="ki-table">卓${esc(e.tableNumber)}</span>
           <span class="ki-qty">×${e.qty}</span>
           <span class="ki-time">${fmtTime(e.time)}</span>
+          ${e.note ? `<span class="ki-note">${esc(e.note)}</span>` : ''}
           <span class="ki-status-badge ${badgeClass}">${esc(e.status)}</span>
           <div class="ki-btns">${btns}</div>
         </div>`;

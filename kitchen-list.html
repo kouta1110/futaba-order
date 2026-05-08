@@ -61,6 +61,8 @@
     .kl-item-row:last-child { border-bottom: none; }
     .kl-item-name { flex: 1; color: #e8dcc8; font-size: .88rem; min-width: 0; }
     .kl-item-qty  { color: #c9a84c; font-weight: 700; font-size: .82rem; white-space: nowrap; flex-shrink: 0; }
+    .kl-item-memo { font-size: .68rem; color: #e09060; flex-shrink: 0; max-width: 80px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     /* 品目右のステータスボタン */
     .kl-row-btns  { display: flex; gap: 3px; flex-shrink: 0; }
@@ -187,6 +189,7 @@ function buildRow(o) {
     <div class="kl-item-row">
       <span class="kl-item-name">${esc(item.name)}</span>
       <span class="kl-item-qty">×${item.quantity}</span>
+      ${item.note ? `<span class="kl-item-memo">${esc(item.note)}</span>` : ''}
       <div class="kl-row-btns">${btns}</div>
     </div>`).join('');
 

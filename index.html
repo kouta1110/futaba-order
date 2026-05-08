@@ -95,6 +95,25 @@
     }
     .billing-edit-price-btn:active { background: rgba(255,255,255,.1); }
     .billing-paid-wrap { padding: 10px 14px; }
+    .billing-item-memo {
+      width: 100%; font-size: .72rem; color: #e09060;
+      padding: 1px 0 4px 2px; letter-spacing: .02em;
+    }
+    /* メニュー行のメモ入力 */
+    .menu-item-info { flex: 1; min-width: 0; }
+    .item-memo-input {
+      width: 80px; flex-shrink: 0;
+      background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.15);
+      border-radius: 5px; color: #e8dcc8; font-size: .72rem;
+      padding: 4px 7px; font-family: inherit; outline: none;
+    }
+    .item-memo-input::placeholder { color: #666; }
+    .item-memo-input:focus { border-color: rgba(201,168,76,.4); background: rgba(201,168,76,.05); }
+    /* プレビューのアイテムメモ */
+    .preview-item-note {
+      font-size: .72rem; color: #e09060; flex-shrink: 0;
+      background: rgba(224,144,96,.1); border-radius: 3px; padding: 1px 5px;
+    }
 
     /* ─── ハンバーガーボタン ─── */
     .hamburger-btn {
@@ -304,7 +323,7 @@
 
 <script>
 let tables = [], menus = [], orders = [];
-let selTableNum = null, qty = {};
+let selTableNum = null, qty = {}, itemNotes = {};
 // 会計確認での単価上書き { 'tableNum|itemName': customPrice }
 const priceOverrides = {};
 
@@ -457,7 +476,7 @@ function renderMenuList() {
       return `
         <div class="order-menu-item ${q ? 'has-quantity' : ''}" id="mi-${m.id}">
           <div class="menu-item-row">
-            <div>
+            <div class="menu-item-info">
               <div class="menu-item-name">${esc(m.name)}${sold ? ' <span style="color:#e06060;font-size:.7rem">売切</span>' : ''}</div>
               <div class="menu-item-price">${yen(m.price)}</div>
             </div>
@@ -466,6 +485,9 @@ function renderMenuList() {
               <span class="qty-display" id="q-${m.id}">${q}</span>
               <button class="qty-btn" onclick="setQty('${m.id}',1)">＋</button>
             </div>
+            <input type="text" class="item-memo-input" id="note-${m.id}"
+              placeholder="メモ" value="${esc(itemNotes[m.id] || '')}"
+              oninput="itemNotes['${m.id}']=this.value" autocomplete="off">
           </div>
         </div>`;
     }).join('')
@@ -491,7 +513,7 @@ function calcTotal() {
 function confirmOrder() {
   if (!selTableNum) { toast('卓番を入力してください', 'error'); return; }
   const items = menus.filter(m => (qty[m.id] || 0) > 0)
-    .map(m => ({ id: m.id, name: m.name, price: m.price, quantity: qty[m.id] }));
+    .map(m => ({ id: m.id, name: m.name, price: m.price, quantity: qty[m.id], note: itemNotes[m.id] || '' }));
   if (!items.length) { toast('商品を選択してください', 'error'); return; }
   const t    = tables.find(x => x.tableNumber === selTableNum);
   const memo = document.getElementById('inp-memo').value.trim();
@@ -503,6 +525,7 @@ function confirmOrder() {
       ${items.map(i => `
         <div class="preview-item">
           <span class="preview-item-name">${esc(i.name)}</span>
+          ${i.note ? `<span class="preview-item-note">${esc(i.note)}</span>` : ''}
           <span class="preview-item-qty">× ${i.quantity}</span>
           <span class="preview-item-sub">${yen(i.price * i.quantity)}</span>
         </div>`).join('')}
@@ -521,7 +544,7 @@ function backToForm() {
 async function submitOrder() {
   if (!selTableNum) return;
   const items = menus.filter(m => (qty[m.id] || 0) > 0)
-    .map(m => ({ name: m.name, price: m.price, quantity: qty[m.id], note: '' }));
+    .map(m => ({ name: m.name, price: m.price, quantity: qty[m.id], note: itemNotes[m.id] || '' }));
   if (!items.length) return;
   const t    = tables.find(x => x.tableNumber === selTableNum);
   const memo = document.getElementById('inp-memo').value.trim();
@@ -540,7 +563,7 @@ async function submitOrder() {
       if (memo) upd.tableNote = memo;
       await tablesRef.doc(t.id).update(upd);
     }
-    qty = {}; selTableNum = null;
+    qty = {}; itemNotes = {}; selTableNum = null;
     document.getElementById('inp-tablenum').value = '';
     document.getElementById('inp-memo').value = '';
     document.getElementById('table-found').textContent = '';
@@ -574,8 +597,9 @@ function renderBilling() {
       };
     }
     o.items.forEach(i => {
-      if (!groups[key].itemMap[i.name]) groups[key].itemMap[i.name] = { price: i.price, qty: 0 };
+      if (!groups[key].itemMap[i.name]) groups[key].itemMap[i.name] = { price: i.price, qty: 0, notes: [] };
       groups[key].itemMap[i.name].qty += i.quantity;
+      if (i.note) groups[key].itemMap[i.name].notes.push(i.note);
     });
     groups[key].total += o.totalPrice;
     if (!groups[key].memo && o.orderNote) groups[key].memo = o.orderNote;
@@ -589,12 +613,13 @@ function renderBilling() {
   el.innerHTML = list.map(g => {
     const pp = g.guestCount > 0
       ? `<div class="billing-per-person">1人あたり ${yen(Math.ceil(g.total / g.guestCount))}</div>` : '';
-    const itemRows = Object.entries(g.itemMap).map(([name, {price, qty}]) => {
+    const itemRows = Object.entries(g.itemMap).map(([name, {price, qty, notes}]) => {
       const key = `${g.tableNumber}|${name}`;
       const effPrice = priceOverrides[key] !== undefined ? priceOverrides[key] : price;
       const edited = priceOverrides[key] !== undefined;
+      const noteStr = [...new Set((notes || []).filter(Boolean))].join(' / ');
       return `
-      <div class="billing-item-row">
+      <div class="billing-item-row" style="flex-wrap:wrap;">
         <span class="billing-item-name">${esc(name)}</span>
         <span class="billing-item-qty">× ${qty}</span>
         <span class="billing-item-price-wrap">
@@ -602,6 +627,7 @@ function renderBilling() {
           <button class="billing-edit-price-btn" onclick="editPrice('${g.tableNumber}','${esc(name)}',${effPrice})">✎</button>
         </span>
         <span class="billing-item-sub">${yen(effPrice * qty)}</span>
+        ${noteStr ? `<span class="billing-item-memo">${esc(noteStr)}</span>` : ''}
       </div>`;
     }).join('');
     // priceOverridesを考慮した合計
