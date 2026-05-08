@@ -1,0 +1,1229 @@
+/* ============================================================
+   style.css - 双葉オーダーシステム スタイル
+   既存の周年サイトと同じカラーテーマで統一
+   ============================================================ */
+
+/* ===== CSS変数（カラーパレット） ===== */
+:root {
+  /* 既存サイトと同じカラー定義 */
+  --gold:         #c9a84c;
+  --gold-light:   #e8c97a;
+  --gold-dark:    #9a7a28;
+  --dark:         #1a1410;
+  --dark-mid:     #251e16;
+  --dark-light:   #32271c;
+  --cream:        #f5efe6;
+  --cream-dark:   #e8ddd0;
+  --red:          #8b2020;
+  --red-light:    #c23030;
+
+  /* システム専用カラー */
+  --card-bg:      #1e1812;
+  --card-border:  #3a2e22;
+  --input-bg:     #2a2016;
+  --input-border: #4a3c28;
+
+  /* ステータスカラー */
+  --status-pending: #e8c97a;   /* 未対応 - ゴールド */
+  --status-cooking: #e07a30;   /* 調理中 - オレンジ */
+  --status-served:  #5a8a6a;   /* 提供済み - グリーン */
+  --status-paid:    #5a6a5a;   /* 会計済み - グレーグリーン */
+
+  /* スペーシング */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* ボトムナビの高さ（下部の余白計算に使用） */
+  --nav-height: 68px;
+}
+
+/* ===== リセット ===== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ===== ベース ===== */
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%; /* iOSでフォントサイズが自動変更されるのを防ぐ */
+}
+
+body {
+  font-family: 'Shippori Mincho B1', 'Zen Old Mincho', 'Noto Sans JP', serif;
+  background-color: var(--dark);
+  color: var(--cream);
+  min-height: 100vh;
+  overflow-x: hidden;
+  /* ボトムナビ分の余白 */
+  padding-bottom: var(--nav-height);
+}
+
+/* ===== アプリヘッダー ===== */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: linear-gradient(to bottom, var(--dark) 70%, transparent);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--card-border);
+  backdrop-filter: blur(8px);
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.header-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.1em;
+}
+
+.header-subtitle {
+  font-size: 0.8rem;
+  color: var(--cream-dark);
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+}
+
+.connection-status {
+  margin-left: auto;
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: var(--dark-light);
+  color: var(--cream-dark);
+  opacity: 0.7;
+}
+.connection-status.connected {
+  color: var(--status-served);
+  opacity: 1;
+}
+.connection-status.error {
+  color: var(--red-light);
+  opacity: 1;
+}
+
+/* ===== メインコンテンツエリア ===== */
+.app-main {
+  padding: var(--space-md);
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* ===== タブパネル ===== */
+.tab-panel {
+  display: none;
+  animation: fadeIn 0.2s ease;
+}
+.tab-panel.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== パネルヘッダー ===== */
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--card-border);
+}
+
+.panel-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--gold);
+  letter-spacing: 0.1em;
+}
+
+/* ===== ボトムナビ（モバイル用タブバー） ===== */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  display: flex;
+  background: var(--dark-mid);
+  border-top: 1px solid var(--card-border);
+  height: var(--nav-height);
+  padding-bottom: env(safe-area-inset-bottom, 0); /* iPhoneのノッチ対応 */
+}
+
+.nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--cream-dark);
+  opacity: 0.5;
+  transition: opacity 0.2s, color 0.2s;
+  padding: var(--space-sm);
+  -webkit-tap-highlight-color: transparent;
+}
+.nav-btn.active {
+  color: var(--gold);
+  opacity: 1;
+}
+.nav-btn:active {
+  opacity: 0.7;
+}
+
+.nav-icon {
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.nav-label {
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+/* ===== カード共通スタイル ===== */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: var(--space-lg);
+  margin-bottom: var(--space-md);
+  transition: border-color 0.2s;
+}
+.card:active {
+  border-color: var(--gold-dark);
+}
+
+/* ===== 卓一覧グリッド ===== */
+.tables-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-md);
+}
+
+@media (min-width: 600px) {
+  .tables-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ===== 卓カード ===== */
+.table-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: var(--space-md);
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+.table-card:active {
+  transform: scale(0.97);
+  border-color: var(--gold-dark);
+}
+
+/* 使用中の卓 */
+.table-card.active-table {
+  border-color: var(--gold-dark);
+  background: var(--dark-light);
+}
+
+/* 未会計あり */
+.table-card.has-unpaid {
+  border-color: var(--status-cooking);
+}
+
+/* 未使用の卓は薄く表示 */
+.table-card.inactive-table {
+  opacity: 0.45;
+}
+
+.table-card-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--cream);
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+  line-height: 1.3;
+}
+
+.table-card-number {
+  font-size: 0.7rem;
+  color: var(--gold);
+  margin-bottom: var(--space-sm);
+  opacity: 0.8;
+}
+
+.table-card-guests {
+  font-size: 0.75rem;
+  color: var(--cream-dark);
+  margin-bottom: 2px;
+}
+
+.table-card-status {
+  font-size: 0.7rem;
+  margin-top: var(--space-sm);
+  padding: 3px 8px;
+  border-radius: 20px;
+  display: inline-block;
+  font-weight: 600;
+}
+.status-unpaid {
+  background: rgba(224, 122, 48, 0.2);
+  color: var(--status-cooking);
+}
+.status-paid {
+  background: rgba(90, 138, 106, 0.2);
+  color: var(--status-served);
+}
+.status-inactive {
+  background: var(--dark-mid);
+  color: #666;
+}
+
+.table-card-total {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--gold-light);
+  margin-top: var(--space-xs);
+}
+
+.table-card-pending-orders {
+  font-size: 0.7rem;
+  color: var(--status-pending);
+  margin-top: 2px;
+}
+
+/* ===== フォーム部品 ===== */
+.form-group {
+  margin-bottom: var(--space-lg);
+}
+
+.form-label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--gold);
+  margin-bottom: var(--space-sm);
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  color: var(--cream);
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 12px var(--space-md);
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: #666;
+}
+
+.form-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23c9a84c' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* ===== カウンター（人数調整など） ===== */
+.counter-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.counter-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--card-border);
+  background: var(--dark-light);
+  color: var(--gold);
+  font-size: 1.3rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.counter-btn:active {
+  background: var(--dark-mid);
+}
+
+.counter-input {
+  flex: 1;
+  text-align: center;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  color: var(--cream);
+  font-family: inherit;
+  font-size: 1.2rem;
+  font-weight: 700;
+  padding: 10px;
+}
+.counter-input:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+/* ===== ボタン ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  transition: opacity 0.15s, transform 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* プライマリ（ゴールド） */
+.btn-primary {
+  background: var(--gold);
+  color: var(--dark);
+  padding: 12px var(--space-lg);
+  font-size: 0.95rem;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--gold-light);
+}
+
+/* アウトライン */
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--card-border);
+  color: var(--cream-dark);
+  padding: 10px var(--space-md);
+  font-size: 0.9rem;
+}
+.btn-outline:hover:not(:disabled) {
+  border-color: var(--gold-dark);
+}
+
+/* アクセント（緑） */
+.btn-accent {
+  background: var(--status-served);
+  color: #fff;
+  padding: 12px var(--space-lg);
+  font-size: 0.95rem;
+}
+
+/* 危険（赤） */
+.btn-danger {
+  background: var(--red);
+  color: #fff;
+  padding: 10px var(--space-md);
+  font-size: 0.9rem;
+}
+
+/* サイズ */
+.btn-sm {
+  padding: 7px 14px;
+  font-size: 0.78rem;
+  border-radius: 6px;
+}
+
+.btn-large {
+  width: 100%;
+  padding: 16px;
+  font-size: 1.05rem;
+  border-radius: 10px;
+}
+
+/* ===== トグルスイッチ ===== */
+.toggle-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--cream-dark);
+}
+
+.toggle-input {
+  display: none;
+}
+
+.toggle-slider {
+  width: 50px;
+  height: 28px;
+  background: var(--dark-mid);
+  border: 1px solid var(--input-border);
+  border-radius: 14px;
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.toggle-slider::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: #666;
+  border-radius: 50%;
+  transition: transform 0.2s, background 0.2s;
+}
+.toggle-input:checked + .toggle-slider {
+  background: var(--gold-dark);
+  border-color: var(--gold-dark);
+}
+.toggle-input:checked + .toggle-slider::after {
+  transform: translateX(22px);
+  background: var(--gold);
+}
+
+/* ===== 注文入力エリア ===== */
+/* 選択中の卓情報バナー */
+.table-info-banner {
+  background: var(--dark-light);
+  border: 1px solid var(--gold-dark);
+  border-radius: 10px;
+  padding: var(--space-md) var(--space-lg);
+  margin-bottom: var(--space-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+.table-info-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--gold-light);
+}
+.table-info-guests {
+  font-size: 0.8rem;
+  color: var(--cream-dark);
+  opacity: 0.8;
+}
+
+/* メニューカテゴリラベル */
+.menu-category-label {
+  font-size: 0.75rem;
+  color: var(--gold);
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  padding: var(--space-md) 0 var(--space-sm);
+  border-bottom: 1px solid var(--card-border);
+  margin-bottom: var(--space-sm);
+}
+
+/* 注文メニューアイテム */
+.order-menu-item {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: var(--space-md);
+  margin-bottom: var(--space-sm);
+  transition: border-color 0.2s;
+}
+.order-menu-item.has-quantity {
+  border-color: var(--gold-dark);
+  background: var(--dark-light);
+}
+
+.menu-item-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.menu-item-name {
+  flex: 1;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--cream);
+}
+
+.menu-item-price {
+  font-size: 0.85rem;
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+/* メニュー数量コントロール（コンパクト版） */
+.qty-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.qty-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--card-border);
+  background: var(--dark-mid);
+  color: var(--gold);
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.qty-btn:active {
+  background: var(--dark-light);
+}
+.qty-display {
+  min-width: 28px;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--cream);
+}
+
+/* 商品ごとのメモ欄（数量0のときは非表示） */
+.menu-item-note {
+  margin-top: var(--space-sm);
+  display: none;
+}
+.menu-item-note.visible {
+  display: block;
+}
+.note-input {
+  width: 100%;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  color: var(--cream);
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 8px 12px;
+}
+.note-input:focus {
+  outline: none;
+  border-color: var(--gold-dark);
+}
+.note-input::placeholder {
+  color: #555;
+}
+
+/* 合計バー */
+.order-total-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--dark-light);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: var(--space-md) var(--space-lg);
+  margin-bottom: var(--space-md);
+}
+.order-total-label {
+  font-size: 0.85rem;
+  color: var(--cream-dark);
+  letter-spacing: 0.08em;
+}
+.order-total-amount {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--gold-light);
+}
+
+/* 送信エリア */
+.submit-area {
+  margin-bottom: var(--space-xl);
+}
+
+/* ===== 会計確認 ===== */
+.billing-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: var(--space-lg);
+  margin-bottom: var(--space-md);
+}
+
+.billing-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+  gap: var(--space-sm);
+}
+
+.billing-table-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--cream);
+}
+.billing-table-sub {
+  font-size: 0.75rem;
+  color: var(--gold);
+  margin-top: 2px;
+}
+
+.billing-total {
+  text-align: right;
+}
+.billing-total-amount {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--gold-light);
+}
+.billing-per-person {
+  font-size: 0.75rem;
+  color: var(--cream-dark);
+  opacity: 0.7;
+  margin-top: 2px;
+}
+
+/* 注文履歴リスト（会計内） */
+.billing-order-list {
+  border-top: 1px solid var(--card-border);
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+}
+.billing-order-item {
+  font-size: 0.8rem;
+  color: var(--cream-dark);
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+}
+.billing-order-time {
+  font-size: 0.7rem;
+  color: #666;
+  margin-top: 2px;
+  margin-bottom: var(--space-sm);
+}
+
+.billing-paid-btn {
+  width: 100%;
+  margin-top: var(--space-md);
+}
+
+/* ===== メニュー編集 ===== */
+.menu-edit-form {
+  background: var(--dark-light);
+  border: 1px solid var(--gold-dark);
+  border-radius: 12px;
+  padding: var(--space-lg);
+  margin-bottom: var(--space-lg);
+}
+
+.menu-editor-item {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.menu-editor-item.hidden-menu {
+  opacity: 0.45;
+}
+
+.menu-editor-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.menu-editor-name {
+  flex: 1;
+  min-width: 100px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--cream);
+}
+
+.menu-editor-price {
+  font-size: 0.85rem;
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+.menu-editor-badges {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: var(--space-sm);
+}
+
+.badge {
+  font-size: 0.65rem;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+.badge-visible {
+  background: rgba(201, 168, 76, 0.15);
+  color: var(--gold);
+  border-color: var(--gold-dark);
+}
+.badge-hidden {
+  background: var(--dark-mid);
+  color: #666;
+  border-color: #444;
+}
+.badge-soldout {
+  background: rgba(139, 32, 32, 0.2);
+  color: var(--red-light);
+  border-color: var(--red);
+}
+.badge-available {
+  background: rgba(90, 138, 106, 0.15);
+  color: var(--status-served);
+  border-color: var(--status-served);
+}
+
+.menu-editor-actions {
+  display: flex;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.form-actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+  margin-top: var(--space-md);
+}
+
+/* ===== モーダル ===== */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: flex-end; /* スマホはボトムシート風 */
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+@media (min-width: 600px) {
+  .modal {
+    align-items: center;
+  }
+}
+
+.modal-content {
+  background: var(--dark-mid);
+  border: 1px solid var(--card-border);
+  border-radius: 16px 16px 0 0;
+  padding: var(--space-xl) var(--space-lg) calc(var(--space-xl) + env(safe-area-inset-bottom, 0));
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideUp 0.25s ease;
+}
+
+@media (min-width: 600px) {
+  .modal-content {
+    border-radius: 16px;
+    padding: var(--space-xl) var(--space-lg);
+    max-height: 80vh;
+  }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-lg);
+}
+.modal-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--gold);
+}
+.modal-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--card-border);
+  background: var(--dark-light);
+  color: var(--cream-dark);
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+.modal-actions .btn {
+  flex: 1;
+  min-width: 100px;
+}
+
+/* ===== トースト通知 ===== */
+.toast {
+  position: fixed;
+  bottom: calc(var(--nav-height) + 16px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 400;
+  background: var(--dark-light);
+  border: 1px solid var(--card-border);
+  color: var(--cream);
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  animation: toastIn 0.25s ease;
+  max-width: calc(100vw - 32px);
+  text-align: center;
+}
+.toast.success {
+  border-color: var(--status-served);
+  color: var(--status-served);
+}
+.toast.error {
+  border-color: var(--red-light);
+  color: var(--red-light);
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ===== ユーティリティ ===== */
+.hidden {
+  display: none !important;
+}
+
+.loading-text {
+  text-align: center;
+  color: #666;
+  padding: var(--space-xl);
+  font-size: 0.85rem;
+}
+
+.empty-text {
+  text-align: center;
+  color: #555;
+  padding: var(--space-xl) var(--space-md);
+  font-size: 0.85rem;
+  line-height: 1.8;
+}
+
+.divider {
+  height: 1px;
+  background: var(--card-border);
+  margin: var(--space-lg) 0;
+}
+
+/* ===== キッチン画面専用スタイル ===== */
+/* kitchen.html でのみ使用 */
+body.kitchen-mode {
+  font-family: 'Noto Sans JP', 'Shippori Mincho B1', sans-serif;
+  background: #0f0f0f;
+}
+
+.kitchen-header {
+  background: #111;
+  padding: 16px 24px;
+  border-bottom: 2px solid var(--gold-dark);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.kitchen-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.1em;
+}
+
+.kitchen-time {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--cream);
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+}
+
+.kitchen-stats {
+  font-size: 0.75rem;
+  color: #888;
+  text-align: right;
+}
+
+.kitchen-main {
+  padding: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* キッチンのフィルタータブ */
+.kitchen-filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.kitchen-filter-btn {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--card-border);
+  background: #1a1a1a;
+  color: #888;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.kitchen-filter-btn.active {
+  background: var(--gold-dark);
+  border-color: var(--gold-dark);
+  color: var(--dark);
+  font-weight: 700;
+}
+
+/* キッチンのオーダーグリッド */
+.kitchen-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 400px) {
+  .kitchen-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* キッチンのオーダーカード */
+.kitchen-order-card {
+  background: #1a1a1a;
+  border: 2px solid #333;
+  border-radius: 12px;
+  padding: 16px;
+  position: relative;
+  transition: border-color 0.3s;
+}
+
+/* 新着アニメーション */
+.kitchen-order-card.new-order {
+  animation: newOrderPulse 1s ease 3;
+}
+@keyframes newOrderPulse {
+  0%, 100% { border-color: #333; }
+  50%       { border-color: var(--gold); box-shadow: 0 0 16px rgba(201, 168, 76, 0.3); }
+}
+
+/* ステータス別カラー */
+.kitchen-order-card[data-status="未対応"] {
+  border-color: var(--status-pending);
+}
+.kitchen-order-card[data-status="調理中"] {
+  border-color: var(--status-cooking);
+}
+.kitchen-order-card[data-status="提供済み"] {
+  border-color: #333;
+  opacity: 0.5;
+}
+
+.kitchen-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.kitchen-table-name {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--cream);
+  line-height: 1.2;
+}
+
+.kitchen-table-sub {
+  font-size: 0.75rem;
+  color: var(--gold);
+  margin-top: 2px;
+}
+
+.kitchen-order-time {
+  font-size: 0.7rem;
+  color: #888;
+  white-space: nowrap;
+}
+
+/* キッチンのアイテムリスト */
+.kitchen-items {
+  border-top: 1px solid #333;
+  padding-top: 12px;
+  margin-bottom: 12px;
+}
+
+.kitchen-item {
+  margin-bottom: 8px;
+}
+
+.kitchen-item-main {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--cream);
+}
+
+.kitchen-item-qty {
+  color: var(--gold);
+  font-size: 1.1rem;
+}
+
+.kitchen-item-note {
+  font-size: 0.8rem;
+  color: #aaa;
+  padding-left: 12px;
+  margin-top: 2px;
+}
+.kitchen-item-note::before {
+  content: '└ ';
+  color: #555;
+}
+
+/* 注文全体メモ */
+.kitchen-order-note {
+  background: #222;
+  border-left: 3px solid var(--gold);
+  padding: 8px 12px;
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+  color: var(--cream-dark);
+}
+
+/* アレルギーメモは赤で強調 */
+.kitchen-order-note.allergy-warning {
+  border-color: var(--red-light);
+  background: rgba(139, 32, 32, 0.15);
+  color: #ff9090;
+  font-weight: 600;
+}
+.allergy-icon {
+  font-weight: 900;
+  color: var(--red-light);
+  margin-right: 4px;
+}
+
+/* キッチンのステータスボタン */
+.kitchen-status-btns {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.kitchen-status-btn {
+  flex: 1;
+  min-width: 70px;
+  padding: 10px 8px;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background: #222;
+  color: #888;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.kitchen-status-btn.active-status {
+  border-color: transparent;
+  color: #fff;
+}
+.kitchen-status-btn[data-status="未対応"].active-status {
+  background: var(--status-pending);
+  color: var(--dark);
+}
+.kitchen-status-btn[data-status="調理中"].active-status {
+  background: var(--status-cooking);
+}
+.kitchen-status-btn[data-status="提供済み"].active-status {
+  background: var(--status-served);
+}
+
+/* キッチンが空の状態 */
+.kitchen-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: #444;
+  font-size: 1rem;
+}

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>双葉 キッチン画面</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="kitchen-mode">
+
+<header class="kitchen-header">
+  <div>
+    <div class="kitchen-title">双葉 キッチン</div>
+    <div id="sync-status" style="font-size:.7rem;color:#5a8a6a;margin-top:2px;">接続中...</div>
+  </div>
+  <div id="clock" class="kitchen-time">--:--</div>
+  <div class="kitchen-stats">
+    <div id="stat-pending">未対応: <strong>0</strong></div>
+    <div id="stat-cooking">調理中: <strong>0</strong></div>
+  </div>
+</header>
+
+<div class="kitchen-main">
+  <div class="kitchen-filters">
+    <button class="kitchen-filter-btn active" data-filter="all"       onclick="setFilter('all')">すべて</button>
+    <button class="kitchen-filter-btn"         data-filter="未対応"   onclick="setFilter('未対応')">未対応</button>
+    <button class="kitchen-filter-btn"         data-filter="調理中"   onclick="setFilter('調理中')">調理中</button>
+    <button class="kitchen-filter-btn"         data-filter="提供済み" onclick="setFilter('提供済み')">提供済み</button>
+  </div>
+  <div id="grid" class="kitchen-grid">
+    <div class="kitchen-empty">データを読み込み中...</div>
+  </div>
+</div>
+
+<!-- Firebase SDK (compat 9) -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="firebase.js"></script>
+
+<script>
+// ========================================
+// 状態
+// ========================================
+let orders = [];
+let filter = 'all';
+const ALLERGY_WORDS = ['アレルギー','アレルゲン','卵','乳','小麦','大豆','えび','かに','そば','ピーナッツ'];
+
+// ========================================
+// 起動
+// ========================================
+document.addEventListener('DOMContentLoaded', () => {
+  startClock();
+  setupListener();
+});
+
+// ========================================
+// Firestore リアルタイムリスナー
+// ========================================
+function setupListener() {
+  ordersRef.onSnapshot(
+    snap => {
+      orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderGrid();
+      updateStats();
+      setStatus('接続済み', 'ok');
+    },
+    err => {
+      console.error(err);
+      setStatus('オフライン', 'error');
+    }
+  );
+}
+
+function setStatus(msg, state) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = state === 'ok' ? '#5a8a6a' : '#c44';
+}
+
+// ========================================
+// 時計
+// ========================================
+function startClock() {
+  const tick = () => {
+    const d = new Date();
+    document.getElementById('clock').textContent =
+      d.getHours().toString().padStart(2,'0') + ':' +
+      d.getMinutes().toString().padStart(2,'0') + ':' +
+      d.getSeconds().toString().padStart(2,'0');
+  };
+  tick();
+  setInterval(tick, 1000);
+}
+
+// ========================================
+// フィルター
+// ========================================
+function setFilter(f) {
+  filter = f;
+  document.querySelectorAll('.kitchen-filter-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.filter === f)
+  );
+  renderGrid();
+}
+
+// ========================================
+// 注文グリッド描画
+// ========================================
+function renderGrid() {
+  const el = document.getElementById('grid');
+  if (!el) return;
+
+  let list = orders.filter(o => !o.isPaid);
+  if (filter !== 'all') list = list.filter(o => o.status === filter);
+
+  // 古い順（受注順）
+  list.sort((a, b) => {
+    const ta = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+    const tb = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+    return ta - tb;
+  });
+
+  if (!list.length) {
+    el.innerHTML = `<div class="kitchen-empty">${filter === 'all' ? '注文はありません' : `「${filter}」の注文はありません`}</div>`;
+    return;
+  }
+
+  el.innerHTML = list.map(o => buildCard(o)).join('');
+}
+
+function buildCard(o) {
+  const isAllergy = ALLERGY_WORDS.some(w => (o.orderNote || '').includes(w));
+  const time = fmtTime(o.createdAt);
+
+  const itemsHtml = (o.items || []).map(item => `
+    <div class="kitchen-item">
+      <div class="kitchen-item-main">${esc(item.name)} <span class="kitchen-item-qty">×${item.quantity}</span></div>
+      ${item.note ? `<div class="kitchen-item-note">${esc(item.note)}</div>` : ''}
+    </div>`
+  ).join('');
+
+  const noteHtml = o.orderNote ? `
+    <div class="kitchen-order-note ${isAllergy ? 'allergy-warning' : ''}">
+      ${isAllergy ? '<span class="allergy-icon">⚠ アレルギー</span>' : '【メモ】'}
+      ${esc(o.orderNote)}
+    </div>` : '';
+
+  const btns = ['未対応','調理中','提供済み'].map(s => `
+    <button class="kitchen-status-btn ${o.status === s ? 'active-status' : ''}"
+      data-status="${s}" onclick="updateStatus('${o.id}','${s}')">
+      ${s}
+    </button>`
+  ).join('');
+
+  // 卓番表示名：tableNote → orderNote → 卓番のみ
+  const dispName = o.tableNote || o.orderNote || '';
+
+  return `
+    <div class="kitchen-order-card" data-status="${esc(o.status)}" data-id="${o.id}">
+      <div class="kitchen-card-header">
+        <div>
+          <div class="kitchen-table-name">卓${esc(o.tableNumber)}${dispName ? ' — ' + esc(dispName) : ''}</div>
+          <div class="kitchen-table-sub">${o.guestCount ? o.guestCount + '名' : ''}</div>
+        </div>
+        <div class="kitchen-order-time">${time}</div>
+      </div>
+      <div class="kitchen-items">${itemsHtml}</div>
+      ${noteHtml}
+      <div class="kitchen-status-btns">${btns}</div>
+    </div>`;
+}
+
+// ========================================
+// ステータス更新（Firestore）
+// ========================================
+function updateStatus(id, newStatus) {
+  ordersRef.doc(id).update({ status: newStatus }).catch(err => {
+    alert('更新に失敗しました: ' + err.message);
+  });
+}
+
+// ========================================
+// 統計
+// ========================================
+function updateStats() {
+  const active = orders.filter(o => !o.isPaid);
+  const p = active.filter(o => o.status === '未対応').length;
+  const c = active.filter(o => o.status === '調理中').length;
+  document.getElementById('stat-pending').innerHTML =
+    `未対応: <strong style="color:${p ? 'var(--status-pending)' : '#666'}">${p}</strong>`;
+  document.getElementById('stat-cooking').innerHTML =
+    `調理中: <strong style="color:${c ? 'var(--status-cooking)' : '#666'}">${c}</strong>`;
+}
+
+// ========================================
+// ユーティリティ
+// ========================================
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>双葉 オーダーシステム</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;600;700&family=Noto+Sans+JP:wght@400;500&display=swap">
+  <link rel="stylesheet" href="style.css">
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+  <script src="firebase.js"></script>
+  <style>
+    .table-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .table-row-num {
+      font-size: .85rem; color: var(--gold); font-weight: 700;
+      border-radius: 3px; padding: 2px 8px; flex-shrink: 0; min-width: 40px; text-align: center;
+      background: rgba(201,168,76,.1); border: 1px solid rgba(201,168,76,.2);
+    }
+    .table-row-name    { flex: 1; font-size: .85rem; color: #aaa; min-width: 0; }
+    .table-row-guests  { font-size: .75rem; color: #aaa; flex-shrink: 0; }
+    .table-row-total   { font-size: .9rem; color: var(--gold); font-weight: 700; flex-shrink: 0; }
+    .table-row-pending { font-size: .65rem; color: #e08030; flex-shrink: 0; }
+    .table-row-btn {
+      flex-shrink: 0;
+      background: rgba(201,168,76,.12); border: 1px solid rgba(201,168,76,.35);
+      color: var(--gold); font-size: .8rem; font-weight: 700;
+      padding: 6px 12px; border-radius: 5px; cursor: pointer; font-family: inherit;
+    }
+    .table-row-btn:active { background: rgba(201,168,76,.28); }
+    .order-form-inner { padding: 0 16px; }
+    .table-found-info { margin-top: 5px; min-height: 1.3em; font-size: .85rem; color: var(--gold); }
+    .table-found-info.error { color: #e06060; }
+    .preview-card {
+      background: rgba(255,255,255,.05); border: 1px solid rgba(201,168,76,.2);
+      border-radius: 10px; margin: 16px; padding: 16px;
+    }
+    .preview-table-name { font-size: 1.05rem; color: var(--gold); font-weight: 700; margin-bottom: 3px; }
+    .preview-memo {
+      font-size: .8rem; color: #e09090; margin-bottom: 10px; padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .preview-item {
+      display: flex; align-items: center; padding: 7px 0; gap: 8px;
+      border-bottom: 1px solid rgba(255,255,255,.06); font-size: .9rem; color: #e8dcc8;
+    }
+    .preview-item-name { flex: 1; }
+    .preview-item-qty  { color: #aaa; font-size: .8rem; white-space: nowrap; }
+    .preview-item-sub  { color: var(--gold); font-weight: 600; white-space: nowrap; }
+    .preview-total-row {
+      display: flex; justify-content: space-between; padding: 12px 0 0;
+      font-size: 1.05rem; font-weight: 700; color: var(--gold);
+    }
+    .preview-actions { display: flex; gap: 10px; padding: 16px; }
+    .billing-search-wrap { padding: 12px 16px 4px; }
+    .billing-card {
+      background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.09);
+      border-radius: 10px; margin: 8px 16px; overflow: hidden;
+    }
+    .billing-card details > summary { list-style: none; }
+    .billing-card details > summary::-webkit-details-marker { display: none; }
+    .billing-summary {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      padding: 13px 14px 10px; cursor: pointer; gap: 10px;
+    }
+    .billing-summary:active { background: rgba(255,255,255,.03); }
+    .billing-left { flex: 1; min-width: 0; }
+    .billing-tablenum { font-size: 1.3rem; color: var(--gold); font-weight: 700; margin-bottom: 3px; }
+    .billing-name     { font-size: .8rem; color: #aaa; }
+    .billing-right    { text-align: right; flex-shrink: 0; }
+    .billing-total-amount { font-size: 1.1rem; color: var(--gold); font-weight: 700; }
+    .billing-per-person   { font-size: .65rem; color: #999; margin-top: 1px; }
+    .billing-arrow { font-size: .7rem; color: #666; transition: transform .2s; align-self: center; flex-shrink: 0; }
+    .billing-card details[open] .billing-arrow { transform: rotate(90deg); }
+    .billing-items { border-top: 1px solid rgba(255,255,255,.07); padding: 8px 14px 4px; }
+    .billing-item-row { display: flex; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .billing-item-name { flex: 1; font-size: .88rem; color: #d4c8b0; min-width: 0; }
+    .billing-item-qty  { font-size: .8rem; color: #999; margin: 0 12px; white-space: nowrap; }
+    .billing-item-sub  { font-size: .88rem; color: #c8b870; font-weight: 600; white-space: nowrap; }
+    .billing-paid-wrap { padding: 10px 14px; }
+  </style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-content">
+    <h1 class="header-title">双葉</h1>
+    <span class="header-subtitle">オーダーシステム</span>
+    <div id="conn-status" class="connection-status">接続中...</div>
+  </div>
+</header>
+
+<main class="app-main">
+
+  <!-- 卓一覧 -->
+  <section id="tab-tables" class="tab-panel active">
+    <div class="panel-header"><h2 class="panel-title">卓一覧</h2></div>
+    <div id="tables-list"></div>
+  </section>
+
+  <!-- 注文入力 -->
+  <section id="tab-order" class="tab-panel">
+    <div id="order-form">
+      <div class="panel-header"><h2 class="panel-title">注文入力</h2></div>
+      <div class="order-form-inner">
+        <div class="form-group">
+          <label class="form-label">卓番</label>
+          <input id="inp-tablenum" type="text" inputmode="numeric" class="form-input"
+            placeholder="例: 3" oninput="onTableNumInput()" autocomplete="off">
+          <div id="table-found" class="table-found-info"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">メモ（アレルギー・要望など）</label>
+          <input id="inp-memo" type="text" class="form-input"
+            placeholder="例: アレルギー: 卵" autocomplete="off">
+        </div>
+      </div>
+      <div id="menu-list"></div>
+      <div class="order-total-bar">
+        <span class="order-total-label">合計金額</span>
+        <span id="total-display" class="order-total-amount">¥0</span>
+      </div>
+      <div class="submit-area">
+        <button class="btn btn-primary btn-large" onclick="confirmOrder()">確定する</button>
+      </div>
+    </div>
+    <div id="order-preview" class="hidden">
+      <div class="panel-header"><h2 class="panel-title">注文確認</h2></div>
+      <div id="preview-content"></div>
+      <div class="preview-actions">
+        <button class="btn btn-outline btn-large" style="flex:1" onclick="backToForm()">修正する</button>
+        <button class="btn btn-primary btn-large" style="flex:2" onclick="submitOrder()">送信する</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 会計確認 -->
+  <section id="tab-billing" class="tab-panel">
+    <div class="panel-header"><h2 class="panel-title">会計確認</h2></div>
+    <div class="billing-search-wrap">
+      <input id="billing-search" type="text" inputmode="numeric" class="form-input"
+        placeholder="卓番で検索..." oninput="renderBilling()" autocomplete="off">
+    </div>
+    <div id="billing-list"></div>
+  </section>
+
+</main>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-tab="tables"  onclick="switchTab('tables')">
+    <span class="nav-icon">卓</span><span class="nav-label">卓一覧</span>
+  </button>
+  <button class="nav-btn" data-tab="order" onclick="switchTab('order')">
+    <span class="nav-icon">注</span><span class="nav-label">注文入力</span>
+  </button>
+  <button class="nav-btn" data-tab="billing" onclick="switchTab('billing')">
+    <span class="nav-icon">会</span><span class="nav-label">会計確認</span>
+  </button>
+</nav>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+let tables = [], menus = [], orders = [];
+let selTableNum = null, qty = {};
+
+// ── 起動 ──────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  setStatus('接続中...');
+  try {
+    const snap = await tablesRef.limit(1).get();
+    if (snap.empty) await seed();
+    setupListeners();
+  } catch(e) {
+    setStatus('接続エラー', 'error');
+    console.error(e);
+  }
+});
+
+// ── リアルタイムリスナー ───────────────────
+function setupListeners() {
+  tablesRef.onSnapshot(snap => {
+    tables = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    tables.sort((a, b) => parseInt(a.tableNumber) - parseInt(b.tableNumber));
+    renderTables(); renderBilling();
+    setStatus('接続済み', 'ok');
+  }, () => setStatus('オフライン', 'error'));
+
+  menusRef.orderBy('order').onSnapshot(snap => {
+    menus = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderMenuList();
+  });
+
+  ordersRef.onSnapshot(snap => {
+    orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderTables(); renderBilling();
+  });
+}
+
+function setStatus(txt, state) {
+  const el = document.getElementById('conn-status');
+  if (!el) return;
+  el.textContent = txt;
+  el.className = 'connection-status' +
+    (state === 'ok' ? ' connected' : state === 'error' ? ' error' : '');
+}
+
+// ── タブ切り替え ──────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(el => el.classList.toggle('active', el.dataset.tab === name));
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ── 卓一覧 ────────────────────────────────
+function renderTables() {
+  const el = document.getElementById('tables-list');
+  if (!el) return;
+  el.innerHTML = tables.map(t => {
+    const unpaid  = orders.filter(o => o.tableNumber === t.tableNumber && !o.isPaid);
+    const total   = unpaid.reduce((s, o) => s + o.totalPrice, 0);
+    const pending = unpaid.filter(o => o.status !== '提供済み').length;
+    const memo    = t.tableNote || unpaid.find(o => o.orderNote)?.orderNote || '';
+    return `
+      <div class="table-row">
+        <span class="table-row-num">卓${esc(t.tableNumber)}</span>
+        <span class="table-row-name">${esc(memo || '名前なし')}</span>
+        ${t.guestCount ? `<span class="table-row-guests">${t.guestCount}名</span>` : ''}
+        ${total   ? `<span class="table-row-total">${yen(total)}</span>` : ''}
+        ${pending ? `<span class="table-row-pending">${pending}件</span>` : ''}
+        <button class="table-row-btn" onclick="openOrderForTable('${esc(t.tableNumber)}')">注文＋</button>
+      </div>`;
+  }).join('') || '<div class="empty-text">卓がありません</div>';
+}
+
+function openOrderForTable(tableNumber) {
+  switchTab('order'); showOrderForm();
+  document.getElementById('inp-tablenum').value = tableNumber;
+  onTableNumInput();
+  document.getElementById('inp-tablenum').focus();
+}
+
+// ── 注文入力 ──────────────────────────────
+function showOrderForm() {
+  document.getElementById('order-form').classList.remove('hidden');
+  document.getElementById('order-preview').classList.add('hidden');
+}
+
+function onTableNumInput() {
+  const val = document.getElementById('inp-tablenum').value.trim();
+  const t   = tables.find(x => x.tableNumber === val);
+  const el  = document.getElementById('table-found');
+  if (!val) {
+    selTableNum = null; el.textContent = ''; el.className = 'table-found-info';
+  } else if (t) {
+    selTableNum = val;
+    el.textContent = t.displayName + (t.guestCount ? '　' + t.guestCount + '名' : '');
+    el.className = 'table-found-info';
+  } else {
+    selTableNum = null;
+    el.textContent = '該当する卓がありません'; el.className = 'table-found-info error';
+  }
+  renderMenuList(); calcTotal();
+}
+
+function renderMenuList() {
+  const el = document.getElementById('menu-list');
+  if (!el) return;
+  if (!selTableNum) {
+    el.innerHTML = '<div class="empty-text">卓番を入力するとメニューが表示されます</div>';
+    return;
+  }
+  const visible = menus.filter(m => m.isVisible);
+  const cats = [...new Set(visible.map(m => m.category))];
+  el.innerHTML = cats.map(cat =>
+    `<div class="menu-category-label">${esc(cat)}</div>` +
+    visible.filter(m => m.category === cat).map(m => {
+      const q = qty[m.id] || 0, sold = m.isSoldOut;
+      return `
+        <div class="order-menu-item ${q ? 'has-quantity' : ''}" id="mi-${m.id}">
+          <div class="menu-item-row">
+            <div>
+              <div class="menu-item-name">${esc(m.name)}${sold ? ' <span style="color:#e06060;font-size:.7rem">売切</span>' : ''}</div>
+              <div class="menu-item-price">${yen(m.price)}</div>
+            </div>
+            <div class="qty-control"${sold ? ' style="opacity:.4;pointer-events:none"' : ''}>
+              <button class="qty-btn" onclick="setQty('${m.id}',-1)">−</button>
+              <span class="qty-display" id="q-${m.id}">${q}</span>
+              <button class="qty-btn" onclick="setQty('${m.id}',1)">＋</button>
+            </div>
+          </div>
+        </div>`;
+    }).join('')
+  ).join('') || '<div class="empty-text">表示できるメニューがありません</div>';
+}
+
+function setQty(id, d) {
+  qty[id] = Math.max(0, (qty[id] || 0) + d);
+  const qEl = document.getElementById('q-' + id);
+  const mEl = document.getElementById('mi-' + id);
+  if (qEl) qEl.textContent = qty[id];
+  if (mEl) mEl.classList.toggle('has-quantity', qty[id] > 0);
+  calcTotal();
+}
+
+function calcTotal() {
+  const total = menus.reduce((s, m) => s + m.price * (qty[m.id] || 0), 0);
+  const el = document.getElementById('total-display');
+  if (el) el.textContent = yen(total);
+  return total;
+}
+
+function confirmOrder() {
+  if (!selTableNum) { toast('卓番を入力してください', 'error'); return; }
+  const items = menus.filter(m => (qty[m.id] || 0) > 0)
+    .map(m => ({ id: m.id, name: m.name, price: m.price, quantity: qty[m.id] }));
+  if (!items.length) { toast('商品を選択してください', 'error'); return; }
+  const t    = tables.find(x => x.tableNumber === selTableNum);
+  const memo = document.getElementById('inp-memo').value.trim();
+  const total = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  document.getElementById('preview-content').innerHTML = `
+    <div class="preview-card">
+      <div class="preview-table-name">卓${esc(selTableNum)}　${esc(t?.displayName || '')}${t?.guestCount ? '　' + t.guestCount + '名' : ''}</div>
+      ${memo ? `<div class="preview-memo">メモ: ${esc(memo)}</div>` : ''}
+      ${items.map(i => `
+        <div class="preview-item">
+          <span class="preview-item-name">${esc(i.name)}</span>
+          <span class="preview-item-qty">× ${i.quantity}</span>
+          <span class="preview-item-sub">${yen(i.price * i.quantity)}</span>
+        </div>`).join('')}
+      <div class="preview-total-row"><span>合計</span><span>${yen(total)}</span></div>
+    </div>`;
+  document.getElementById('order-form').classList.add('hidden');
+  document.getElementById('order-preview').classList.remove('hidden');
+  window.scrollTo(0, 0);
+}
+
+function backToForm() {
+  document.getElementById('order-form').classList.remove('hidden');
+  document.getElementById('order-preview').classList.add('hidden');
+}
+
+async function submitOrder() {
+  if (!selTableNum) return;
+  const items = menus.filter(m => (qty[m.id] || 0) > 0)
+    .map(m => ({ name: m.name, price: m.price, quantity: qty[m.id], note: '' }));
+  if (!items.length) return;
+  const t    = tables.find(x => x.tableNumber === selTableNum);
+  const memo = document.getElementById('inp-memo').value.trim();
+  try {
+    await ordersRef.add({
+      tableNumber: selTableNum,
+      displayName: t?.displayName || ('卓' + selTableNum),
+      guestCount:  t?.guestCount  || 0,
+      items, orderNote: memo,
+      totalPrice:  items.reduce((s, i) => s + i.price * i.quantity, 0),
+      status: '未対応', isPaid: false,
+      createdAt: serverNow(),
+    });
+    if (t?.id) {
+      const upd = { isActive: true, isPaid: false };
+      if (memo) upd.tableNote = memo;
+      await tablesRef.doc(t.id).update(upd);
+    }
+    qty = {}; selTableNum = null;
+    document.getElementById('inp-tablenum').value = '';
+    document.getElementById('inp-memo').value = '';
+    document.getElementById('table-found').textContent = '';
+    document.getElementById('table-found').className = 'table-found-info';
+    showOrderForm();
+    toast('注文を送信しました！', 'success');
+    switchTab('tables');
+  } catch(e) { toast('送信エラー: ' + e.message, 'error'); }
+}
+
+// ── 会計確認 ──────────────────────────────
+function renderBilling() {
+  const el = document.getElementById('billing-list');
+  if (!el) return;
+  const searchVal = (document.getElementById('billing-search')?.value || '').trim();
+  const unpaid = orders.filter(o => !o.isPaid);
+  if (!unpaid.length) {
+    el.innerHTML = '<div class="empty-text" style="padding:24px 16px">未会計の注文はありません</div>';
+    return;
+  }
+  const groups = {};
+  unpaid.forEach(o => {
+    const key = o.tableNumber;
+    if (!groups[key]) {
+      const t = tables.find(x => x.tableNumber === key);
+      groups[key] = {
+        tableId: t?.id, tableNumber: key,
+        displayName: t?.displayName || o.displayName,
+        guestCount:  t?.guestCount  || o.guestCount,
+        memo: t?.tableNote || '', itemMap: {}, total: 0,
+      };
+    }
+    o.items.forEach(i => {
+      if (!groups[key].itemMap[i.name]) groups[key].itemMap[i.name] = { price: i.price, qty: 0 };
+      groups[key].itemMap[i.name].qty += i.quantity;
+    });
+    groups[key].total += o.totalPrice;
+    if (!groups[key].memo && o.orderNote) groups[key].memo = o.orderNote;
+  });
+  let list = Object.values(groups).sort((a, b) => parseInt(a.tableNumber) - parseInt(b.tableNumber));
+  if (searchVal) list = list.filter(g => g.tableNumber.startsWith(searchVal));
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-text" style="padding:24px 16px">卓番 "${esc(searchVal)}" の未会計注文はありません</div>`;
+    return;
+  }
+  el.innerHTML = list.map(g => {
+    const pp = g.guestCount > 0
+      ? `<div class="billing-per-person">1人あたり ${yen(Math.ceil(g.total / g.guestCount))}</div>` : '';
+    const itemRows = Object.entries(g.itemMap).map(([name, {price, qty}]) => `
+      <div class="billing-item-row">
+        <span class="billing-item-name">${esc(name)}</span>
+        <span class="billing-item-qty">× ${qty}</span>
+        <span class="billing-item-sub">${yen(price * qty)}</span>
+      </div>`).join('');
+    return `
+      <div class="billing-card">
+        <details>
+          <summary class="billing-summary">
+            <div class="billing-left">
+              <div class="billing-tablenum">卓 ${g.tableNumber}</div>
+              <div class="billing-name">${esc(g.memo || '名前なし')}</div>
+            </div>
+            <div class="billing-right">
+              <div class="billing-total-amount">${yen(g.total)}</div>${pp}
+            </div>
+            <span class="billing-arrow">▶</span>
+          </summary>
+          <div class="billing-items">${itemRows}</div>
+        </details>
+        <div class="billing-paid-wrap">
+          <button class="btn btn-accent billing-paid-btn"
+            onclick="markPaid('${g.tableId}','${g.tableNumber}')">
+            会計済みにする（${yen(g.total)}）
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function markPaid(tableId, tableNumber) {
+  if (!confirm('会計済みにしますか？')) return;
+  try {
+    const batch = db.batch();
+    orders.filter(o => o.tableNumber === tableNumber && !o.isPaid)
+      .forEach(o => batch.update(ordersRef.doc(o.id), { isPaid: true }));
+    if (tableId) batch.update(tablesRef.doc(tableId), { isPaid: true, isActive: false, guestCount: 0, tableNote: '' });
+    await batch.commit();
+    toast('会計を完了しました', 'success');
+  } catch(e) { toast('エラー: ' + e.message, 'error'); }
+}
+
+// ── ユーティリティ ────────────────────────
+function yen(n)  { return '¥' + (n || 0).toLocaleString('ja-JP'); }
+function esc(s)  { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+let _tt;
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'toast' + (type ? ' ' + type : '');
+  el.classList.remove('hidden');
+  clearTimeout(_tt); _tt = setTimeout(() => el.classList.add('hidden'), 3000);
+}
+
+// ── 初期データ生成（初回のみ） ─────────────
+async function seed() {
+  const b = db.batch();
+  [
+    {tableNumber:'1', displayName:'テラス1',       guestCount:0,isActive:false,isPaid:true, tableNote:''},
+    {tableNumber:'2', displayName:'テラス2',       guestCount:0,isActive:false,isPaid:true, tableNote:''},
+    {tableNumber:'3', displayName:'VIP席',         guestCount:0,isActive:false,isPaid:false,tableNote:''},
+    {tableNumber:'4', displayName:'カウンター左',   guestCount:0,isActive:false,isPaid:false,tableNote:''},
+    {tableNumber:'5', displayName:'カウンター右',   guestCount:0,isActive:false,isPaid:false,tableNote:''},
+    {tableNumber:'6', displayName:'ソファ席A',     guestCount:0,isActive:false,isPaid:false,tableNote:''},
+    {tableNumber:'7', displayName:'ソファ席B',     guestCount:0,isActive:false,isPaid:false,tableNote:''},
+    {tableNumber:'8', displayName:'ボックス席1',   guestCount:0,isActive:false,isPaid:false,tableNote:''},
+    {tableNumber:'9', displayName:'ボックス席2',   guestCount:0,isActive:false,isPaid:false,tableNote:''},
+    {tableNumber:'10',displayName:'ボックス席3',   guestCount:0,isActive:false,isPaid:false,tableNote:''},
+    {tableNumber:'11',displayName:'個室A',         guestCount:0,isActive:false,isPaid:false,tableNote:''},
+    {tableNumber:'12',displayName:'個室B',         guestCount:0,isActive:false,isPaid:false,tableNote:''},
+    {tableNumber:'13',displayName:'窓際席1',       guestCount:0,isActive:false,isPaid:false,tableNote:''},
+    {tableNumber:'14',displayName:'窓際席2',       guestCount:0,isActive:false,isPaid:false,tableNote:''},
+    {tableNumber:'15',displayName:'中央テーブル1', guestCount:0,isActive:false,isPaid:false,tableNote:''},
+    {tableNumber:'16',displayName:'中央テーブル2', guestCount:0,isActive:false,isPaid:false,tableNote:''},
+    {tableNumber:'17',displayName:'中央テーブル3', guestCount:0,isActive:false,isPaid:false,tableNote:''},
+    {tableNumber:'18',displayName:'奥席1',         guestCount:0,isActive:false,isPaid:false,tableNote:''},
+    {tableNumber:'19',displayName:'奥席2',         guestCount:0,isActive:false,isPaid:false,tableNote:''},
+    {tableNumber:'20',displayName:'奥席3',         guestCount:0,isActive:false,isPaid:false,tableNote:''},
+  ].forEach(t => b.set(tablesRef.doc(), t));
+  [
+    {name:'生ビール',        price:600, category:'ドリンク',isVisible:true,isSoldOut:false,order:1},
+    {name:'ハイボール',      price:550, category:'ドリンク',isVisible:true,isSoldOut:false,order:2},
+    {name:'レモンサワー',    price:550, category:'ドリンク',isVisible:true,isSoldOut:false,order:3},
+    {name:'梅サワー',        price:550, category:'ドリンク',isVisible:true,isSoldOut:false,order:4},
+    {name:'日本酒（一合）',  price:750, category:'ドリンク',isVisible:true,isSoldOut:false,order:5},
+    {name:'ウーロン茶',      price:300, category:'ドリンク',isVisible:true,isSoldOut:false,order:6},
+    {name:'焼きそば',        price:800, category:'フード',  isVisible:true,isSoldOut:false,order:7},
+    {name:'焼売',            price:700, category:'フード',  isVisible:true,isSoldOut:false,order:8},
+    {name:'からあげ',        price:750, category:'フード',  isVisible:true,isSoldOut:false,order:9},
+    {name:'もつ煮',          price:650, category:'フード',  isVisible:true,isSoldOut:false,order:10},
+    {name:'鉄板牛焼き',      price:1200,category:'フード',  isVisible:true,isSoldOut:false,order:11},
+    {name:'野菜炒め',        price:600, category:'フード',  isVisible:true,isSoldOut:false,order:12},
+    {name:'ご飯',            price:200, category:'フード',  isVisible:true,isSoldOut:false,order:13},
+    {name:'3周年記念コース', price:5000,category:'コース',  isVisible:true,isSoldOut:false,order:14},
+  ].forEach(m => b.set(menusRef.doc(), m));
+  await b.commit();
+}
+</script>
+</body>
+</html>
