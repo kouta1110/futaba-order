@@ -205,7 +205,8 @@ const ALLERGY_WORDS = ['アレルギー','アレルゲン','卵','乳','小麦',
 
 document.addEventListener('DOMContentLoaded', () => {
   startClock();
-  ordersRef.onSnapshot(snap => {
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  ordersRef.where('createdAt', '>=', todayStart).onSnapshot(snap => {
     orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderList();
     updateStats();
@@ -376,7 +377,7 @@ function updateStats() {
 }
 
 function esc(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 </script>
 </body>

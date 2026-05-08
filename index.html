@@ -357,12 +357,13 @@ function setupListeners() {
     renderMenuList();
   });
 
-  ordersRef.onSnapshot(snap => {
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  ordersRef.where('createdAt', '>=', todayStart).onSnapshot(snap => {
     orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderTables(); renderBilling();
     // 履歴タブが開いていれば更新
     if (document.getElementById('tab-history')?.classList.contains('active')) renderHistory();
-  });
+  }, () => setStatus('オフライン', 'error'));
 }
 
 function setStatus(txt, state) {
@@ -552,7 +553,9 @@ async function submitOrder() {
   const t    = tables.find(x => x.tableNumber === selTableNum);
   const memo = document.getElementById('inp-memo').value.trim();
   try {
-    await ordersRef.add({
+    const newOrderRef = ordersRef.doc();
+    const orderBatch = db.batch();
+    orderBatch.set(newOrderRef, {
       tableNumber: selTableNum,
       displayName: t?.displayName || ('卓' + selTableNum),
       guestCount:  t?.guestCount  || 0,
@@ -564,8 +567,9 @@ async function submitOrder() {
     if (t?.id) {
       const upd = { isActive: true, isPaid: false };
       if (memo) upd.tableNote = memo;
-      await tablesRef.doc(t.id).update(upd);
+      orderBatch.update(tablesRef.doc(t.id), upd);
     }
+    await orderBatch.commit();
     qty = {}; itemNotes = {}; selTableNum = null;
     document.getElementById('inp-tablenum').value = '';
     document.getElementById('inp-memo').value = '';
@@ -671,10 +675,20 @@ async function markPaid(tableId, tableNumber, calcTotal) {
   try {
     const batch = db.batch();
     orders.filter(o => o.tableNumber === tableNumber && !o.isPaid)
-      .forEach(o => batch.update(ordersRef.doc(o.id), { isPaid: true }));
-    if (tableId) batch.update(tablesRef.doc(tableId), { isPaid: true, isActive: false, guestCount: 0, tableNote: '' });
+      .forEach(o => {
+        // 値引き後の実際の支払額を注文ごとに算出して保存
+        const effectiveTotalPrice = (o.items || []).reduce((s, i) => {
+          const key = `${tableNumber}|${i.name}`;
+          const p = priceOverrides[key] !== undefined ? priceOverrides[key] : i.price;
+          return s + p * i.quantity;
+        }, 0);
+        batch.update(ordersRef.doc(o.id), { isPaid: true, effectiveTotalPrice });
+      });
+    // tableId が正常な文字列のときだけ卓ドキュメントを更新
+    if (tableId && tableId !== 'undefined') {
+      batch.update(tablesRef.doc(tableId), { isPaid: true, isActive: false, guestCount: 0, tableNote: '' });
+    }
     await batch.commit();
-    // 会計済みになったら価格上書きをクリア
     Object.keys(priceOverrides).forEach(k => {
       if (k.startsWith(tableNumber + '|')) delete priceOverrides[k];
     });
@@ -716,7 +730,7 @@ function renderHistory() {
     if (!groups[key]) groups[key] = { tableNumber: key, name: '', ordersList: [], itemMap: {}, total: 0 };
     const g = groups[key];
     g.ordersList.push(o);
-    g.total += o.totalPrice || 0;
+    g.total += (o.effectiveTotalPrice ?? o.totalPrice) || 0;
     if (!g.name) g.name = o.tableNote || o.orderNote || '';
     (o.items || []).forEach(i => {
       if (!g.itemMap[i.name]) g.itemMap[i.name] = { price: i.price, qty: 0 };
@@ -782,7 +796,7 @@ function renderHistory() {
 
 // ── ユーティリティ ────────────────────────
 function yen(n)  { return '¥' + (n || 0).toLocaleString('ja-JP'); }
-function esc(s)  { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function esc(s)  { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 let _tt;
 function toast(msg, type='') {
