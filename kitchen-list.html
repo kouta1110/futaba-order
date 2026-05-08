@@ -43,43 +43,35 @@
 
     /* 左：卓番セル（縦長の一塊） */
     .kl-table-cell {
-      width: 76px; flex-shrink: 0;
+      width: 62px; flex-shrink: 0;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       gap: 4px; padding: 10px 6px;
       border-right: 1px solid rgba(255,255,255,.07);
       background: rgba(0,0,0,.15);
     }
-    .kl-table-num {
-      font-size: 1.1rem; font-weight: 900; color: #c9a84c;
-      line-height: 1;
-    }
-    .kl-time {
-      font-size: .65rem; color: #777;
-    }
-    .kl-btns {
-      display: flex; flex-direction: column; gap: 3px; width: 100%; margin-top: 4px;
-    }
-    .kl-status-btn {
-      width: 100%; padding: 4px 2px; border-radius: 4px;
-      font-size: .6rem; font-weight: 700; cursor: pointer; border: 1px solid #444;
-      background: #1e1e1e; color: #666; font-family: inherit; text-align: center;
-    }
-    .kl-status-btn.active[data-s="未対応"] { background: rgba(201,168,76,.2); border-color: #c9a84c; color: #c9a84c; }
-    .kl-status-btn.active[data-s="調理中"] { background: rgba(224,128,48,.2); border-color: #e08030; color: #e08030; }
-    .kl-status-btn.active[data-s="提供済み"] { background: rgba(80,160,80,.2); border-color: #50a050; color: #6dba6d; }
+    .kl-table-num { font-size: 1.05rem; font-weight: 900; color: #c9a84c; line-height: 1; }
+    .kl-time      { font-size: .62rem; color: #777; }
 
     /* 右：品目列 */
-    .kl-items-col {
-      flex: 1; display: flex; flex-direction: column; min-width: 0;
-    }
+    .kl-items-col { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     .kl-item-row {
-      display: flex; align-items: center; gap: 8px;
-      padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,.04);
-      font-size: .9rem;
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.04);
     }
     .kl-item-row:last-child { border-bottom: none; }
-    .kl-item-name { flex: 1; color: #e8dcc8; min-width: 0; }
-    .kl-item-qty  { color: #c9a84c; font-weight: 700; font-size: .85rem; white-space: nowrap; }
+    .kl-item-name { flex: 1; color: #e8dcc8; font-size: .88rem; min-width: 0; }
+    .kl-item-qty  { color: #c9a84c; font-weight: 700; font-size: .82rem; white-space: nowrap; flex-shrink: 0; }
+
+    /* 品目右のステータスボタン */
+    .kl-row-btns  { display: flex; gap: 3px; flex-shrink: 0; }
+    .kl-row-btn {
+      padding: 4px 7px; border-radius: 4px; font-size: .62rem; font-weight: 700;
+      cursor: pointer; border: 1px solid #444; background: #1e1e1e; color: #666;
+      font-family: inherit; white-space: nowrap;
+    }
+    .kl-row-btn.active[data-s="未対応"]  { background: rgba(201,168,76,.2); border-color: #c9a84c; color: #c9a84c; }
+    .kl-row-btn.active[data-s="調理中"]  { background: rgba(224,128,48,.2); border-color: #e08030; color: #e08030; }
+    .kl-row-btn.active[data-s="提供済み"]{ background: rgba(80,160,80,.2);  border-color: #50a050; color: #6dba6d; }
     .kl-note {
       font-size: .75rem; color: #aaa; padding: 6px 12px;
       border-top: 1px solid rgba(255,255,255,.05); background: rgba(255,255,255,.02);
@@ -187,27 +179,27 @@ function buildRow(o) {
   const isAlg  = ALLERGY_WORDS.some(w => (o.orderNote || '').includes(w));
   const dispName = o.tableNote || o.orderNote || '';
 
+  const btns = ['未対応','調理中','提供済み'].map(s => `
+    <button class="kl-row-btn${o.status === s ? ' active' : ''}" data-s="${s}"
+      onclick="updateStatus('${o.id}','${s}')">${s}</button>`).join('');
+
   const itemRows = (o.items || []).map(item => `
     <div class="kl-item-row">
       <span class="kl-item-name">${esc(item.name)}</span>
       <span class="kl-item-qty">×${item.quantity}</span>
+      <div class="kl-row-btns">${btns}</div>
     </div>`).join('');
 
   const noteHtml = o.orderNote
     ? `<div class="kl-note${isAlg ? ' allergy' : ''}">${isAlg ? '⚠ アレルギー: ' : ''}${esc(o.orderNote)}</div>`
     : '';
 
-  const btns = ['未対応','調理中','提供済み'].map(s => `
-    <button class="kl-status-btn${o.status === s ? ' active' : ''}" data-s="${s}"
-      onclick="updateStatus('${o.id}','${s}')">${s}</button>`).join('');
-
   return `
     <div class="kl-group" data-status="${esc(o.status)}">
       <div class="kl-table-cell">
         <div class="kl-table-num">卓${esc(o.tableNumber)}</div>
-        ${dispName ? `<div style="font-size:.6rem;color:#888;text-align:center;max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(dispName)}</div>` : ''}
+        ${dispName ? `<div style="font-size:.58rem;color:#888;text-align:center;max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(dispName)}</div>` : ''}
         <div class="kl-time">${time}</div>
-        <div class="kl-btns">${btns}</div>
       </div>
       <div class="kl-items-col">
         ${itemRows}
