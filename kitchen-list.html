@@ -79,6 +79,72 @@
       border-top: 1px solid rgba(255,255,255,.05); background: rgba(255,255,255,.02);
     }
     .kl-note.allergy { color: #e06060; font-weight: 700; }
+
+    /* ─── 品目フィルター FAB ─── */
+    .kl-fab {
+      position: fixed; bottom: 20px; right: 16px; z-index: 50;
+      background: #1e1a14; border: 1px solid rgba(201,168,76,.4);
+      border-radius: 24px; padding: 9px 16px;
+      display: flex; align-items: center; gap: 6px;
+      cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,.5);
+      color: #c9a84c; font-family: inherit; font-weight: 700; font-size: .82rem;
+    }
+    .kl-fab:active { background: rgba(201,168,76,.15); }
+    .kl-fab-badge {
+      background: #e08030; color: #fff; font-size: .65rem; font-weight: 900;
+      border-radius: 10px; padding: 1px 6px; line-height: 1.4;
+    }
+
+    /* ─── フィルターオーバーレイ・パネル ─── */
+    .kl-fp-overlay {
+      position: fixed; inset: 0; z-index: 60;
+      background: rgba(0,0,0,.55);
+    }
+    .kl-fp-panel {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 70;
+      background: #1a1612; border-top: 1px solid rgba(201,168,76,.25);
+      border-radius: 16px 16px 0 0;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      max-height: 70vh; display: flex; flex-direction: column;
+      animation: slideUp .2s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
+    .kl-fp-header {
+      display: flex; align-items: center; padding: 14px 16px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .kl-fp-title { flex: 1; font-size: .95rem; font-weight: 700; color: #c9a84c; }
+    .kl-fp-clear {
+      font-size: .78rem; color: #e08030; background: none; border: 1px solid rgba(224,128,48,.3);
+      border-radius: 12px; padding: 3px 10px; cursor: pointer; font-family: inherit;
+      margin-right: 8px;
+    }
+    .kl-fp-close {
+      font-size: 1rem; color: #888; background: none; border: none;
+      cursor: pointer; padding: 4px 8px; font-family: inherit;
+    }
+    .kl-fp-items {
+      overflow-y: auto; padding: 8px 0;
+    }
+    .kl-fp-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 18px; cursor: pointer;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+    .kl-fp-item:active { background: rgba(255,255,255,.04); }
+    .kl-fp-check {
+      width: 20px; height: 20px; border-radius: 5px; flex-shrink: 0;
+      border: 2px solid #555; background: transparent;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .15s;
+    }
+    .kl-fp-check.on { border-color: #c9a84c; background: rgba(201,168,76,.2); }
+    .kl-fp-check.on::after { content: '✓'; font-size: .8rem; color: #c9a84c; font-weight: 900; }
+    .kl-fp-name { font-size: .9rem; color: #e8dcc8; flex: 1; }
+    .kl-fp-count { font-size: .72rem; color: #888; }
   </style>
 </head>
 <body class="kitchen-mode">
@@ -108,7 +174,24 @@
   <button class="kl-filter-btn"         data-filter="提供済み" onclick="setFilter('提供済み')">提供済み</button>
 </div>
 
-<div id="list-container"></div>
+<div id="list-container" style="padding-bottom:72px;"></div>
+
+<!-- 品目フィルター FAB -->
+<button class="kl-fab" onclick="openItemFilter()">
+  🍽 品目絞込
+  <span id="fab-badge" class="kl-fab-badge" style="display:none">0</span>
+</button>
+
+<!-- フィルターパネル -->
+<div id="kl-fp-overlay" class="kl-fp-overlay hidden" onclick="closeItemFilter()"></div>
+<div id="kl-fp-panel"   class="kl-fp-panel   hidden">
+  <div class="kl-fp-header">
+    <span class="kl-fp-title">品目フィルター</span>
+    <button class="kl-fp-clear" onclick="clearItemFilter()">すべてクリア</button>
+    <button class="kl-fp-close" onclick="closeItemFilter()">✕</button>
+  </div>
+  <div id="kl-fp-items" class="kl-fp-items"></div>
+</div>
 
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
@@ -117,6 +200,7 @@
 <script>
 let orders = [];
 let filter = 'all';
+let itemFilter = new Set(); // 選択中の品目名
 const ALLERGY_WORDS = ['アレルギー','アレルゲン','卵','乳','小麦','大豆','えび','かに','そば','ピーナッツ'];
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -166,6 +250,10 @@ function renderList() {
 
   let list = orders.filter(o => !o.isPaid);
   if (filter !== 'all') list = list.filter(o => o.status === filter);
+  // 品目フィルター：選択品目を含む注文だけ表示
+  if (itemFilter.size > 0) {
+    list = list.filter(o => (o.items || []).some(i => itemFilter.has(i.name)));
+  }
   list.sort((a, b) => getTime(a) - getTime(b));
 
   if (!list.length) {
@@ -185,7 +273,12 @@ function buildRow(o) {
     <button class="kl-row-btn${o.status === s ? ' active' : ''}" data-s="${s}"
       onclick="updateStatus('${o.id}','${s}')">${s}</button>`).join('');
 
-  const itemRows = (o.items || []).map(item => `
+  // 品目フィルター中は対象品目の行だけ表示
+  const visibleItems = itemFilter.size > 0
+    ? (o.items || []).filter(i => itemFilter.has(i.name))
+    : (o.items || []);
+
+  const itemRows = visibleItems.map(item => `
     <div class="kl-item-row">
       <span class="kl-item-name">${esc(item.name)}</span>
       <span class="kl-item-qty">×${item.quantity}</span>
@@ -213,6 +306,63 @@ function buildRow(o) {
 
 function updateStatus(id, newStatus) {
   ordersRef.doc(id).update({ status: newStatus }).catch(err => alert('更新失敗: ' + err.message));
+}
+
+// ── 品目フィルター ────────────────────────
+function openItemFilter() {
+  // 現在の注文から品目名を集計
+  const countMap = {};
+  orders.filter(o => !o.isPaid).forEach(o => {
+    (o.items || []).forEach(i => {
+      countMap[i.name] = (countMap[i.name] || 0) + i.quantity;
+    });
+  });
+  const names = Object.keys(countMap).sort();
+
+  document.getElementById('kl-fp-items').innerHTML = names.map(name => `
+    <div class="kl-fp-item" onclick="toggleItemFilter('${esc(name)}')">
+      <div class="kl-fp-check${itemFilter.has(name) ? ' on' : ''}"></div>
+      <span class="kl-fp-name">${esc(name)}</span>
+      <span class="kl-fp-count">×${countMap[name]}</span>
+    </div>`).join('') || '<div style="padding:16px;color:#888;text-align:center;">注文がありません</div>';
+
+  document.getElementById('kl-fp-overlay').classList.remove('hidden');
+  document.getElementById('kl-fp-panel').classList.remove('hidden');
+}
+
+function closeItemFilter() {
+  document.getElementById('kl-fp-overlay').classList.add('hidden');
+  document.getElementById('kl-fp-panel').classList.add('hidden');
+}
+
+function toggleItemFilter(name) {
+  if (itemFilter.has(name)) itemFilter.delete(name);
+  else itemFilter.add(name);
+  // チェック表示更新
+  document.querySelectorAll('.kl-fp-item').forEach(el => {
+    const n = el.querySelector('.kl-fp-name')?.textContent;
+    el.querySelector('.kl-fp-check')?.classList.toggle('on', itemFilter.has(n));
+  });
+  updateFabBadge();
+  renderList();
+}
+
+function clearItemFilter() {
+  itemFilter.clear();
+  document.querySelectorAll('.kl-fp-check').forEach(el => el.classList.remove('on'));
+  updateFabBadge();
+  renderList();
+}
+
+function updateFabBadge() {
+  const badge = document.getElementById('fab-badge');
+  if (!badge) return;
+  if (itemFilter.size > 0) {
+    badge.textContent = itemFilter.size;
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
 }
 
 function updateStats() {
