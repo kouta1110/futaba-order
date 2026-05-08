@@ -213,6 +213,10 @@
   <button class="hm-item hm-item--sub" onclick="menuNav('history')">
     <span class="hm-icon">📋</span>会計履歴
   </button>
+  <div class="hm-divider"></div>
+  <button class="hm-item hm-item--sub" onclick="closeMenu();resetMenus()">
+    <span class="hm-icon">🔄</span>メニュー再設定
+  </button>
 </div>
 
 <main class="app-main">
@@ -797,6 +801,35 @@ async function seed() {
     {name:'ボトルワイン',    price:3000, category:'ドリンク',isVisible:true,isSoldOut:false,order:10},
   ].forEach(m => b.set(menusRef.doc(), m));
   await b.commit();
+}
+
+// ── メニュー再設定（既存メニューを全削除して再登録） ──
+async function resetMenus() {
+  if (!confirm('メニューをリセットして再登録します。よろしいですか？')) return;
+  try {
+    // 既存メニューを全削除
+    const snap = await menusRef.get();
+    const batch = db.batch();
+    snap.docs.forEach(d => batch.delete(menusRef.doc(d.id)));
+    await batch.commit();
+
+    // 新しいメニューを登録
+    const b2 = db.batch();
+    [
+      {name:'限定焼きそば',    price:1000, category:'フード',  isVisible:true,isSoldOut:false,order:1},
+      {name:'黒唐揚げ',        price:800,  category:'フード',  isVisible:true,isSoldOut:false,order:2},
+      {name:'痛風だし巻き',    price:900,  category:'フード',  isVisible:true,isSoldOut:false,order:3},
+      {name:'春焼売',          price:800,  category:'フード',  isVisible:true,isSoldOut:false,order:4},
+      {name:'ブルームコーヒー',price:600,  category:'フード',  isVisible:true,isSoldOut:false,order:5},
+      {name:'ANNIE HALLBAR',   price:1000, category:'フード',  isVisible:true,isSoldOut:false,order:6},
+      {name:'ときや',          price:1000, category:'フード',  isVisible:true,isSoldOut:false,order:7},
+      {name:'ドリンク',        price:500,  category:'ドリンク',isVisible:true,isSoldOut:false,order:8},
+      {name:'グラスワイン',    price:700,  category:'ドリンク',isVisible:true,isSoldOut:false,order:9},
+      {name:'ボトルワイン',    price:3000, category:'ドリンク',isVisible:true,isSoldOut:false,order:10},
+    ].forEach(m => b2.set(menusRef.doc(), m));
+    await b2.commit();
+    toast('メニューを更新しました！', 'success');
+  } catch(e) { toast('エラー: ' + e.message, 'error'); }
 }
 </script>
 </body>
