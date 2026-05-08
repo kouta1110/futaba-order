@@ -32,6 +32,11 @@
       padding: 6px 12px; border-radius: 5px; cursor: pointer; font-family: inherit;
     }
     .table-row-btn:active { background: rgba(201,168,76,.28); }
+    .table-row-btn--billing {
+      background: rgba(80,160,100,.12); border-color: rgba(80,160,100,.35);
+      color: #6dba88;
+    }
+    .table-row-btn--billing:active { background: rgba(80,160,100,.28); }
     .order-form-inner { padding: 0 16px; }
     .table-found-info { margin-top: 5px; min-height: 1.3em; font-size: .85rem; color: var(--gold); }
     .table-found-info.error { color: #e06060; }
@@ -243,8 +248,16 @@ function renderTables() {
         ${total   ? `<span class="table-row-total">${yen(total)}</span>` : ''}
         ${pending ? `<span class="table-row-pending">${pending}件</span>` : ''}
         <button class="table-row-btn" onclick="openOrderForTable('${esc(t.tableNumber)}')">注文＋</button>
+        <button class="table-row-btn table-row-btn--billing" onclick="openBillingForTable('${esc(t.tableNumber)}')">会計</button>
       </div>`;
   }).join('') || '<div class="empty-text">卓がありません</div>';
+}
+
+function openBillingForTable(tableNumber) {
+  const el = document.getElementById('billing-search');
+  if (el) { el.value = tableNumber; }
+  switchTab('billing');
+  renderBilling();
 }
 
 function openOrderForTable(tableNumber) {
