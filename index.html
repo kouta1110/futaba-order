@@ -95,6 +95,98 @@
     }
     .billing-edit-price-btn:active { background: rgba(255,255,255,.1); }
     .billing-paid-wrap { padding: 10px 14px; }
+
+    /* ─── ハンバーガーボタン ─── */
+    .hamburger-btn {
+      margin-left: auto; background: none; border: none; cursor: pointer;
+      display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 6px;
+    }
+    .hamburger-btn span {
+      display: block; width: 20px; height: 2px;
+      background: var(--gold, #c9a84c); border-radius: 2px;
+    }
+    .hamburger-btn:active { background: rgba(201,168,76,.1); }
+
+    /* ─── ハンバーガードロワー ─── */
+    .hm-overlay {
+      position: fixed; inset: 0; z-index: 99;
+      background: rgba(0,0,0,.45);
+    }
+    .hm-panel {
+      position: fixed; top: 56px; right: 12px; z-index: 100;
+      background: #1e1a14; border: 1px solid rgba(201,168,76,.25);
+      border-radius: 10px; overflow: hidden; min-width: 160px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.5);
+      animation: hmSlideIn .15s ease;
+    }
+    @keyframes hmSlideIn {
+      from { opacity:0; transform: translateY(-8px); }
+      to   { opacity:1; transform: translateY(0); }
+    }
+    .hm-item {
+      display: flex; align-items: center; gap: 10px;
+      width: 100%; padding: 14px 18px; border: none; background: none;
+      color: #e8dcc8; font-size: .95rem; font-weight: 600;
+      cursor: pointer; font-family: inherit; text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .hm-item:last-child { border-bottom: none; }
+    .hm-item:active { background: rgba(201,168,76,.1); }
+    .hm-item--sub { color: #aaa; font-size: .85rem; font-weight: 400; }
+    .hm-icon { font-size: 1rem; }
+    .hm-divider { height: 1px; background: rgba(255,255,255,.08); }
+
+    /* ─── 会計履歴 FAB ─── */
+    .fab-history {
+      position: fixed; bottom: 80px; right: 16px; z-index: 50;
+      background: rgba(30,26,20,.92); border: 1px solid rgba(201,168,76,.3);
+      border-radius: 20px; padding: 7px 13px;
+      display: flex; align-items: center; gap: 5px;
+      cursor: pointer; box-shadow: 0 3px 12px rgba(0,0,0,.4);
+      color: #c9a84c; font-family: inherit;
+    }
+    .fab-history:active { background: rgba(201,168,76,.15); }
+    .fab-history-icon  { font-size: .85rem; }
+    .fab-history-label { font-size: .75rem; font-weight: 700; letter-spacing: .04em; }
+
+    /* ─── 会計履歴 カード ─── */
+    .history-total-badge {
+      font-size: .75rem; color: #c9a84c; font-weight: 700;
+      background: rgba(201,168,76,.1); border: 1px solid rgba(201,168,76,.2);
+      border-radius: 12px; padding: 3px 10px;
+    }
+    .history-date-sep {
+      font-size: .72rem; color: #888; font-weight: 700;
+      padding: 10px 16px 4px; letter-spacing: .06em;
+    }
+    .history-card {
+      background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07);
+      border-radius: 8px; margin: 5px 16px; overflow: hidden;
+    }
+    .history-card-header {
+      display: flex; align-items: baseline; gap: 10px;
+      padding: 10px 14px 6px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .history-card-table { font-size: 1rem; font-weight: 700; color: #c9a84c; }
+    .history-card-memo  { font-size: .75rem; color: #888; flex: 1; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .history-card-time  { font-size: .72rem; color: #666; flex-shrink: 0; }
+    .history-card-items { padding: 6px 14px; }
+    .history-card-item  {
+      display: flex; gap: 8px; padding: 4px 0;
+      font-size: .82rem; color: #b0a890;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+    .history-card-item:last-child { border-bottom: none; }
+    .history-card-item-name { flex: 1; }
+    .history-card-item-qty  { color: #888; white-space: nowrap; }
+    .history-card-item-sub  { color: #c8b870; white-space: nowrap; }
+    .history-card-total {
+      display: flex; justify-content: space-between;
+      padding: 7px 14px; background: rgba(0,0,0,.15);
+      font-size: .88rem; font-weight: 700; color: #c9a84c;
+    }
   </style>
 </head>
 <body>
@@ -104,8 +196,26 @@
     <h1 class="header-title">双葉</h1>
     <span class="header-subtitle">オーダーシステム</span>
     <div id="conn-status" class="connection-status">接続中...</div>
+    <button class="hamburger-btn" onclick="toggleMenu()" aria-label="メニュー">
+      <span></span><span></span><span></span>
+    </button>
   </div>
 </header>
+
+<!-- ハンバーガードロワー -->
+<div id="hm-overlay" class="hm-overlay hidden" onclick="closeMenu()"></div>
+<div id="hm-panel" class="hm-panel hidden">
+  <button class="hm-item" onclick="menuNav('order')">
+    <span class="hm-icon">✏️</span>注文入力
+  </button>
+  <button class="hm-item" onclick="menuNav('billing')">
+    <span class="hm-icon">💴</span>会計確認
+  </button>
+  <div class="hm-divider"></div>
+  <button class="hm-item hm-item--sub" onclick="menuNav('history')">
+    <span class="hm-icon">📋</span>会計履歴
+  </button>
+</div>
 
 <main class="app-main">
 
@@ -161,17 +271,30 @@
     <div id="billing-list"></div>
   </section>
 
+  <!-- 会計履歴 -->
+  <section id="tab-history" class="tab-panel">
+    <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between;padding-right:16px;">
+      <h2 class="panel-title">会計履歴</h2>
+      <span id="history-total-badge" class="history-total-badge"></span>
+    </div>
+    <div class="billing-search-wrap">
+      <input id="history-search" type="text" inputmode="numeric" class="form-input"
+        placeholder="卓番で絞り込み..." oninput="renderHistory()" autocomplete="off">
+    </div>
+    <div id="history-list"></div>
+  </section>
+
 </main>
 
+<!-- 会計履歴 フローティングボタン -->
+<button id="fab-history" class="fab-history" onclick="switchTab('history')">
+  <span class="fab-history-icon">📋</span>
+  <span class="fab-history-label">履歴</span>
+</button>
+
 <nav class="bottom-nav">
-  <button class="nav-btn active" data-tab="tables"  onclick="switchTab('tables')">
+  <button class="nav-btn active" data-tab="tables" onclick="switchTab('tables')">
     <span class="nav-icon">卓</span><span class="nav-label">卓一覧</span>
-  </button>
-  <button class="nav-btn" data-tab="order" onclick="switchTab('order')">
-    <span class="nav-icon">注</span><span class="nav-label">注文入力</span>
-  </button>
-  <button class="nav-btn" data-tab="billing" onclick="switchTab('billing')">
-    <span class="nav-icon">会</span><span class="nav-label">会計確認</span>
   </button>
 </nav>
 
@@ -213,6 +336,8 @@ function setupListeners() {
   ordersRef.onSnapshot(snap => {
     orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderTables(); renderBilling();
+    // 履歴タブが開いていれば更新
+    if (document.getElementById('tab-history')?.classList.contains('active')) renderHistory();
   });
 }
 
@@ -224,11 +349,35 @@ function setStatus(txt, state) {
     (state === 'ok' ? ' connected' : state === 'error' ? ' error' : '');
 }
 
+// ── ハンバーガーメニュー ──────────────────
+function toggleMenu() {
+  const panel   = document.getElementById('hm-panel');
+  const overlay = document.getElementById('hm-overlay');
+  const hidden  = panel.classList.contains('hidden');
+  panel.classList.toggle('hidden', !hidden);
+  overlay.classList.toggle('hidden', !hidden);
+}
+function closeMenu() {
+  document.getElementById('hm-panel').classList.add('hidden');
+  document.getElementById('hm-overlay').classList.add('hidden');
+}
+function menuNav(tab) {
+  closeMenu();
+  switchTab(tab);
+  if (tab === 'billing') renderBilling();
+  if (tab === 'history') renderHistory();
+}
+
 // ── タブ切り替え ──────────────────────────
 function switchTab(name) {
   document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(el => el.classList.toggle('active', el.dataset.tab === name));
-  document.getElementById('tab-' + name).classList.add('active');
+  const panel = document.getElementById('tab-' + name);
+  if (panel) panel.classList.add('active');
+  // FABは履歴タブ以外で表示
+  const fab = document.getElementById('fab-history');
+  if (fab) fab.style.display = name === 'history' ? 'none' : 'flex';
+  if (name === 'history') renderHistory();
 }
 
 // ── 卓一覧 ────────────────────────────────
@@ -511,6 +660,71 @@ function editPrice(tableNumber, itemName, currentPrice) {
   }
   priceOverrides[`${tableNumber}|${itemName}`] = newPrice;
   renderBilling();
+}
+
+// ── 会計履歴 ─────────────────────────────
+function renderHistory() {
+  const el = document.getElementById('history-list');
+  if (!el) return;
+  const searchVal = (document.getElementById('history-search')?.value || '').trim();
+  let paid = orders.filter(o => o.isPaid);
+  if (searchVal) paid = paid.filter(o => o.tableNumber.startsWith(searchVal));
+
+  // 件数バッジ
+  const badge = document.getElementById('history-total-badge');
+  if (badge) {
+    const totalAmount = paid.reduce((s, o) => s + (o.totalPrice || 0), 0);
+    badge.textContent = paid.length ? `${paid.length}件 / ${yen(totalAmount)}` : '';
+  }
+
+  if (!paid.length) {
+    el.innerHTML = `<div class="empty-text" style="padding:24px 16px">会計済みの記録はありません</div>`;
+    return;
+  }
+
+  // 新しい順
+  paid.sort((a, b) => {
+    const ta = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+    const tb = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+    return tb - ta;
+  });
+
+  // 日付ごとにグループ
+  const byDate = {};
+  paid.forEach(o => {
+    const d = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt || 0);
+    const key = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+    if (!byDate[key]) byDate[key] = [];
+    byDate[key].push(o);
+  });
+
+  el.innerHTML = Object.entries(byDate).map(([date, list]) => {
+    const dayTotal = list.reduce((s, o) => s + (o.totalPrice || 0), 0);
+    const cards = list.map(o => {
+      const itemRows = (o.items || []).map(i => `
+        <div class="history-card-item">
+          <span class="history-card-item-name">${esc(i.name)}</span>
+          <span class="history-card-item-qty">×${i.quantity}</span>
+          <span class="history-card-item-sub">${yen(i.price * i.quantity)}</span>
+        </div>`).join('');
+      const memo = o.orderNote ? ` — ${o.orderNote}` : '';
+      return `
+        <div class="history-card">
+          <div class="history-card-header">
+            <span class="history-card-table">卓${esc(o.tableNumber)}</span>
+            <span class="history-card-memo">${esc(memo)}</span>
+            <span class="history-card-time">${fmtTime(o.createdAt)}</span>
+          </div>
+          <div class="history-card-items">${itemRows}</div>
+          <div class="history-card-total">
+            <span>合計</span><span>${yen(o.totalPrice)}</span>
+          </div>
+        </div>`;
+    }).join('');
+    return `
+      <div class="history-date-sep">📅 ${date} — ${yen(dayTotal)}</div>
+      ${cards}`;
+  }).join('');
 }
 
 // ── ユーティリティ ────────────────────────
