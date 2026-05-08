@@ -79,8 +79,16 @@
     .billing-items { border-top: 1px solid rgba(255,255,255,.07); padding: 8px 14px 4px; }
     .billing-item-row { display: flex; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
     .billing-item-name { flex: 1; font-size: .88rem; color: #d4c8b0; min-width: 0; }
-    .billing-item-qty  { font-size: .8rem; color: #999; margin: 0 12px; white-space: nowrap; }
+    .billing-item-qty  { font-size: .8rem; color: #999; margin: 0 8px; white-space: nowrap; }
     .billing-item-sub  { font-size: .88rem; color: #c8b870; font-weight: 600; white-space: nowrap; }
+    .billing-item-price-wrap { display: flex; align-items: center; gap: 4px; margin-right: 8px; white-space: nowrap; }
+    .billing-item-unit { font-size: .8rem; color: #aaa; }
+    .billing-item-unit.price-edited { color: #e09030; font-weight: 700; }
+    .billing-edit-price-btn {
+      background: none; border: 1px solid rgba(255,255,255,.2); border-radius: 4px;
+      color: #aaa; font-size: .75rem; padding: 1px 5px; cursor: pointer; line-height: 1.4;
+    }
+    .billing-edit-price-btn:active { background: rgba(255,255,255,.1); }
     .billing-paid-wrap { padding: 10px 14px; }
   </style>
 </head>
@@ -167,6 +175,8 @@
 <script>
 let tables = [], menus = [], orders = [];
 let selTableNum = null, qty = {};
+// 会計確認での単価上書き { 'tableNum|itemName': customPrice }
+const priceOverrides = {};
 
 // ── 起動 ──────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -415,12 +425,29 @@ function renderBilling() {
   el.innerHTML = list.map(g => {
     const pp = g.guestCount > 0
       ? `<div class="billing-per-person">1人あたり ${yen(Math.ceil(g.total / g.guestCount))}</div>` : '';
-    const itemRows = Object.entries(g.itemMap).map(([name, {price, qty}]) => `
+    const itemRows = Object.entries(g.itemMap).map(([name, {price, qty}]) => {
+      const key = `${g.tableNumber}|${name}`;
+      const effPrice = priceOverrides[key] !== undefined ? priceOverrides[key] : price;
+      const edited = priceOverrides[key] !== undefined;
+      return `
       <div class="billing-item-row">
         <span class="billing-item-name">${esc(name)}</span>
         <span class="billing-item-qty">× ${qty}</span>
-        <span class="billing-item-sub">${yen(price * qty)}</span>
-      </div>`).join('');
+        <span class="billing-item-price-wrap">
+          <span class="billing-item-unit${edited ? ' price-edited' : ''}">${yen(effPrice)}</span>
+          <button class="billing-edit-price-btn" onclick="editPrice('${g.tableNumber}','${esc(name)}',${effPrice})">✎</button>
+        </span>
+        <span class="billing-item-sub">${yen(effPrice * qty)}</span>
+      </div>`;
+    }).join('');
+    // priceOverridesを考慮した合計
+    const calcTotal = Object.entries(g.itemMap).reduce((s, [name, {price, qty}]) => {
+      const key = `${g.tableNumber}|${name}`;
+      const effPrice = priceOverrides[key] !== undefined ? priceOverrides[key] : price;
+      return s + effPrice * qty;
+    }, 0);
+    const ppCalc = g.guestCount > 0
+      ? `<div class="billing-per-person">1人あたり ${yen(Math.ceil(calcTotal / g.guestCount))}</div>` : '';
     return `
       <div class="billing-card">
         <details>
@@ -430,7 +457,7 @@ function renderBilling() {
               <div class="billing-name">${esc(g.memo || '名前なし')}</div>
             </div>
             <div class="billing-right">
-              <div class="billing-total-amount">${yen(g.total)}</div>${pp}
+              <div class="billing-total-amount">${yen(calcTotal)}</div>${ppCalc}
             </div>
             <span class="billing-arrow">▶</span>
           </summary>
@@ -438,15 +465,15 @@ function renderBilling() {
         </details>
         <div class="billing-paid-wrap">
           <button class="btn btn-accent billing-paid-btn"
-            onclick="markPaid('${g.tableId}','${g.tableNumber}')">
-            会計済みにする（${yen(g.total)}）
+            onclick="markPaid('${g.tableId}','${g.tableNumber}',${calcTotal})">
+            会計済みにする（${yen(calcTotal)}）
           </button>
         </div>
       </div>`;
   }).join('');
 }
 
-async function markPaid(tableId, tableNumber) {
+async function markPaid(tableId, tableNumber, calcTotal) {
   if (!confirm('会計済みにしますか？')) return;
   try {
     const batch = db.batch();
@@ -454,8 +481,23 @@ async function markPaid(tableId, tableNumber) {
       .forEach(o => batch.update(ordersRef.doc(o.id), { isPaid: true }));
     if (tableId) batch.update(tablesRef.doc(tableId), { isPaid: true, isActive: false, guestCount: 0, tableNote: '' });
     await batch.commit();
+    // 会計済みになったら価格上書きをクリア
+    Object.keys(priceOverrides).forEach(k => {
+      if (k.startsWith(tableNumber + '|')) delete priceOverrides[k];
+    });
     toast('会計を完了しました', 'success');
   } catch(e) { toast('エラー: ' + e.message, 'error'); }
+}
+
+function editPrice(tableNumber, itemName, currentPrice) {
+  const input = prompt(`「${itemName}」の単価を変更\n現在: ¥${currentPrice.toLocaleString('ja-JP')}`, currentPrice);
+  if (input === null) return;
+  const newPrice = parseInt(input.replace(/[¥,]/g, ''), 10);
+  if (isNaN(newPrice) || newPrice < 0) {
+    toast('正しい金額を入力してください', 'error'); return;
+  }
+  priceOverrides[`${tableNumber}|${itemName}`] = newPrice;
+  renderBilling();
 }
 
 // ── ユーティリティ ────────────────────────
@@ -496,20 +538,16 @@ async function seed() {
     {tableNumber:'20',displayName:'奥席3',         guestCount:0,isActive:false,isPaid:false,tableNote:''},
   ].forEach(t => b.set(tablesRef.doc(), t));
   [
-    {name:'生ビール',        price:600, category:'ドリンク',isVisible:true,isSoldOut:false,order:1},
-    {name:'ハイボール',      price:550, category:'ドリンク',isVisible:true,isSoldOut:false,order:2},
-    {name:'レモンサワー',    price:550, category:'ドリンク',isVisible:true,isSoldOut:false,order:3},
-    {name:'梅サワー',        price:550, category:'ドリンク',isVisible:true,isSoldOut:false,order:4},
-    {name:'日本酒（一合）',  price:750, category:'ドリンク',isVisible:true,isSoldOut:false,order:5},
-    {name:'ウーロン茶',      price:300, category:'ドリンク',isVisible:true,isSoldOut:false,order:6},
-    {name:'焼きそば',        price:800, category:'フード',  isVisible:true,isSoldOut:false,order:7},
-    {name:'焼売',            price:700, category:'フード',  isVisible:true,isSoldOut:false,order:8},
-    {name:'からあげ',        price:750, category:'フード',  isVisible:true,isSoldOut:false,order:9},
-    {name:'もつ煮',          price:650, category:'フード',  isVisible:true,isSoldOut:false,order:10},
-    {name:'鉄板牛焼き',      price:1200,category:'フード',  isVisible:true,isSoldOut:false,order:11},
-    {name:'野菜炒め',        price:600, category:'フード',  isVisible:true,isSoldOut:false,order:12},
-    {name:'ご飯',            price:200, category:'フード',  isVisible:true,isSoldOut:false,order:13},
-    {name:'3周年記念コース', price:5000,category:'コース',  isVisible:true,isSoldOut:false,order:14},
+    {name:'限定焼きそば',    price:1000, category:'フード',  isVisible:true,isSoldOut:false,order:1},
+    {name:'黒唐揚げ',        price:800,  category:'フード',  isVisible:true,isSoldOut:false,order:2},
+    {name:'痛風だし巻き',    price:900,  category:'フード',  isVisible:true,isSoldOut:false,order:3},
+    {name:'春焼売',          price:800,  category:'フード',  isVisible:true,isSoldOut:false,order:4},
+    {name:'ブルームコーヒー',price:600,  category:'フード',  isVisible:true,isSoldOut:false,order:5},
+    {name:'ANNIE HALLBAR',   price:1000, category:'フード',  isVisible:true,isSoldOut:false,order:6},
+    {name:'ときや',          price:1000, category:'フード',  isVisible:true,isSoldOut:false,order:7},
+    {name:'ドリンク',        price:500,  category:'ドリンク',isVisible:true,isSoldOut:false,order:8},
+    {name:'グラスワイン',    price:700,  category:'ドリンク',isVisible:true,isSoldOut:false,order:9},
+    {name:'ボトルワイン',    price:3000, category:'ドリンク',isVisible:true,isSoldOut:false,order:10},
   ].forEach(m => b.set(menusRef.doc(), m));
   await b.commit();
 }
