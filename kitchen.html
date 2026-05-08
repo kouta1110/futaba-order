@@ -22,6 +22,19 @@
   </div>
 </header>
 
+<style>
+  .k-nav { display:flex; gap:0; border-bottom:1px solid rgba(255,255,255,.1); }
+  .k-nav a { flex:1; text-align:center; padding:9px 4px; font-size:.78rem; font-weight:700;
+    letter-spacing:.04em; color:#888; text-decoration:none; border-bottom:2px solid transparent; }
+  .k-nav a.active { color:var(--gold,#c9a84c); border-bottom-color:var(--gold,#c9a84c); }
+</style>
+
+<nav class="k-nav">
+  <a href="kitchen.html" class="active">カード</a>
+  <a href="kitchen-list.html">一覧</a>
+  <a href="kitchen-items.html">品目別</a>
+</nav>
+
 <div class="kitchen-main">
   <div class="kitchen-filters">
     <button class="kitchen-filter-btn active" data-filter="all"       onclick="setFilter('all')">すべて</button>

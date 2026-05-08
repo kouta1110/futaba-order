@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>双葉 キッチン 一覧</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ─── ナビ ─── */
+    .k-nav {
+      display: flex; gap: 0; border-bottom: 1px solid rgba(255,255,255,.1);
+    }
+    .k-nav a {
+      flex: 1; text-align: center; padding: 9px 4px;
+      font-size: .78rem; font-weight: 700; letter-spacing: .04em;
+      color: #888; text-decoration: none; border-bottom: 2px solid transparent;
+      transition: color .15s;
+    }
+    .k-nav a.active { color: var(--gold, #c9a84c); border-bottom-color: var(--gold, #c9a84c); }
+
+    /* ─── フィルター ─── */
+    .kl-filters {
+      display: flex; gap: 6px; padding: 8px 12px;
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .kl-filter-btn {
+      flex-shrink: 0; padding: 5px 14px; border-radius: 20px;
+      font-size: .78rem; font-weight: 700; cursor: pointer; border: 1px solid #444;
+      background: #222; color: #888; font-family: inherit;
+    }
+    .kl-filter-btn.active { background: rgba(201,168,76,.15); border-color: #c9a84c; color: #c9a84c; }
+
+    /* ─── 注文グループ ─── */
+    .kl-group {
+      display: flex; border-bottom: 1px solid rgba(255,255,255,.07);
+      border-left: 4px solid #444;
+    }
+    .kl-group[data-status="未対応"] { border-left-color: #c9a84c; }
+    .kl-group[data-status="調理中"] { border-left-color: #e08030; }
+    .kl-group[data-status="提供済み"] { border-left-color: #3a5a3a; opacity: .7; }
+
+    /* 左：卓番セル（縦長の一塊） */
+    .kl-table-cell {
+      width: 76px; flex-shrink: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 4px; padding: 10px 6px;
+      border-right: 1px solid rgba(255,255,255,.07);
+      background: rgba(0,0,0,.15);
+    }
+    .kl-table-num {
+      font-size: 1.1rem; font-weight: 900; color: #c9a84c;
+      line-height: 1;
+    }
+    .kl-time {
+      font-size: .65rem; color: #777;
+    }
+    .kl-btns {
+      display: flex; flex-direction: column; gap: 3px; width: 100%; margin-top: 4px;
+    }
+    .kl-status-btn {
+      width: 100%; padding: 4px 2px; border-radius: 4px;
+      font-size: .6rem; font-weight: 700; cursor: pointer; border: 1px solid #444;
+      background: #1e1e1e; color: #666; font-family: inherit; text-align: center;
+    }
+    .kl-status-btn.active[data-s="未対応"] { background: rgba(201,168,76,.2); border-color: #c9a84c; color: #c9a84c; }
+    .kl-status-btn.active[data-s="調理中"] { background: rgba(224,128,48,.2); border-color: #e08030; color: #e08030; }
+    .kl-status-btn.active[data-s="提供済み"] { background: rgba(80,160,80,.2); border-color: #50a050; color: #6dba6d; }
+
+    /* 右：品目列 */
+    .kl-items-col {
+      flex: 1; display: flex; flex-direction: column; min-width: 0;
+    }
+    .kl-item-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,.04);
+      font-size: .9rem;
+    }
+    .kl-item-row:last-child { border-bottom: none; }
+    .kl-item-name { flex: 1; color: #e8dcc8; min-width: 0; }
+    .kl-item-qty  { color: #c9a84c; font-weight: 700; font-size: .85rem; white-space: nowrap; }
+    .kl-note {
+      font-size: .75rem; color: #aaa; padding: 6px 12px;
+      border-top: 1px solid rgba(255,255,255,.05); background: rgba(255,255,255,.02);
+    }
+    .kl-note.allergy { color: #e06060; font-weight: 700; }
+  </style>
+</head>
+<body class="kitchen-mode">
+
+<header class="kitchen-header">
+  <div>
+    <div class="kitchen-title">双葉 キッチン</div>
+    <div id="sync-status" style="font-size:.7rem;color:#5a8a6a;margin-top:2px;">接続中...</div>
+  </div>
+  <div id="clock" class="kitchen-time">--:--</div>
+  <div class="kitchen-stats">
+    <div id="stat-pending">未対応: <strong>0</strong></div>
+    <div id="stat-cooking">調理中: <strong>0</strong></div>
+  </div>
+</header>
+
+<nav class="k-nav">
+  <a href="kitchen.html">カード</a>
+  <a href="kitchen-list.html" class="active">一覧</a>
+  <a href="kitchen-items.html">品目別</a>
+</nav>
+
+<div class="kl-filters">
+  <button class="kl-filter-btn active" data-filter="all"       onclick="setFilter('all')">すべて</button>
+  <button class="kl-filter-btn"         data-filter="未対応"   onclick="setFilter('未対応')">未対応</button>
+  <button class="kl-filter-btn"         data-filter="調理中"   onclick="setFilter('調理中')">調理中</button>
+  <button class="kl-filter-btn"         data-filter="提供済み" onclick="setFilter('提供済み')">提供済み</button>
+</div>
+
+<div id="list-container"></div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="firebase.js"></script>
+<script>
+let orders = [];
+let filter = 'all';
+const ALLERGY_WORDS = ['アレルギー','アレルゲン','卵','乳','小麦','大豆','えび','かに','そば','ピーナッツ'];
+
+document.addEventListener('DOMContentLoaded', () => {
+  startClock();
+  ordersRef.onSnapshot(snap => {
+    orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderList();
+    updateStats();
+    setStatus('接続済み', 'ok');
+  }, err => { console.error(err); setStatus('オフライン', 'error'); });
+});
+
+function setStatus(msg, state) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = state === 'ok' ? '#5a8a6a' : '#c44';
+}
+
+function startClock() {
+  const tick = () => {
+    const d = new Date();
+    document.getElementById('clock').textContent =
+      d.getHours().toString().padStart(2,'0') + ':' +
+      d.getMinutes().toString().padStart(2,'0') + ':' +
+      d.getSeconds().toString().padStart(2,'0');
+  };
+  tick(); setInterval(tick, 1000);
+}
+
+function setFilter(f) {
+  filter = f;
+  document.querySelectorAll('.kl-filter-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.filter === f)
+  );
+  renderList();
+}
+
+function getTime(o) {
+  if (!o.createdAt) return 0;
+  return o.createdAt.toDate ? o.createdAt.toDate().getTime() : new Date(o.createdAt).getTime();
+}
+
+function renderList() {
+  const el = document.getElementById('list-container');
+  if (!el) return;
+
+  let list = orders.filter(o => !o.isPaid);
+  if (filter !== 'all') list = list.filter(o => o.status === filter);
+  list.sort((a, b) => getTime(a) - getTime(b));
+
+  if (!list.length) {
+    el.innerHTML = `<div class="kitchen-empty" style="padding:32px 16px">${filter === 'all' ? '注文はありません' : `「${filter}」の注文はありません`}</div>`;
+    return;
+  }
+
+  el.innerHTML = list.map(o => buildRow(o)).join('');
+}
+
+function buildRow(o) {
+  const time   = fmtTime(o.createdAt);
+  const isAlg  = ALLERGY_WORDS.some(w => (o.orderNote || '').includes(w));
+  const dispName = o.tableNote || o.orderNote || '';
+
+  const itemRows = (o.items || []).map(item => `
+    <div class="kl-item-row">
+      <span class="kl-item-name">${esc(item.name)}</span>
+      <span class="kl-item-qty">×${item.quantity}</span>
+    </div>`).join('');
+
+  const noteHtml = o.orderNote
+    ? `<div class="kl-note${isAlg ? ' allergy' : ''}">${isAlg ? '⚠ アレルギー: ' : ''}${esc(o.orderNote)}</div>`
+    : '';
+
+  const btns = ['未対応','調理中','提供済み'].map(s => `
+    <button class="kl-status-btn${o.status === s ? ' active' : ''}" data-s="${s}"
+      onclick="updateStatus('${o.id}','${s}')">${s}</button>`).join('');
+
+  return `
+    <div class="kl-group" data-status="${esc(o.status)}">
+      <div class="kl-table-cell">
+        <div class="kl-table-num">卓${esc(o.tableNumber)}</div>
+        ${dispName ? `<div style="font-size:.6rem;color:#888;text-align:center;max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(dispName)}</div>` : ''}
+        <div class="kl-time">${time}</div>
+        <div class="kl-btns">${btns}</div>
+      </div>
+      <div class="kl-items-col">
+        ${itemRows}
+        ${noteHtml}
+      </div>
+    </div>`;
+}
+
+function updateStatus(id, newStatus) {
+  ordersRef.doc(id).update({ status: newStatus }).catch(err => alert('更新失敗: ' + err.message));
+}
+
+function updateStats() {
+  const active = orders.filter(o => !o.isPaid);
+  const p = active.filter(o => o.status === '未対応').length;
+  const c = active.filter(o => o.status === '調理中').length;
+  document.getElementById('stat-pending').innerHTML =
+    `未対応: <strong style="color:${p ? 'var(--status-pending)' : '#666'}">${p}</strong>`;
+  document.getElementById('stat-cooking').innerHTML =
+    `調理中: <strong style="color:${c ? 'var(--status-cooking)' : '#666'}">${c}</strong>`;
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

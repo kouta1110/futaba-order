@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>双葉 キッチン 品目別</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ─── ナビ ─── */
+    .k-nav {
+      display: flex; gap: 0; border-bottom: 1px solid rgba(255,255,255,.1);
+    }
+    .k-nav a {
+      flex: 1; text-align: center; padding: 9px 4px;
+      font-size: .78rem; font-weight: 700; letter-spacing: .04em;
+      color: #888; text-decoration: none; border-bottom: 2px solid transparent;
+    }
+    .k-nav a.active { color: var(--gold, #c9a84c); border-bottom-color: var(--gold, #c9a84c); }
+
+    /* ─── 品目セクション ─── */
+    .ki-section {
+      margin: 10px 12px;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 8px; overflow: hidden;
+    }
+    .ki-item-header {
+      background: rgba(201,168,76,.1);
+      padding: 8px 14px;
+      font-size: .9rem; font-weight: 700; color: #c9a84c;
+      border-bottom: 1px solid rgba(201,168,76,.2);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .ki-item-count {
+      font-size: .7rem; color: #e08030; font-weight: 700;
+      background: rgba(224,128,48,.15); border: 1px solid rgba(224,128,48,.3);
+      border-radius: 10px; padding: 1px 7px;
+    }
+
+    /* ─── 注文行 ─── */
+    .ki-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 14px; border-bottom: 1px solid rgba(255,255,255,.05);
+      border-left: 3px solid #444;
+    }
+    .ki-row:last-child { border-bottom: none; }
+    .ki-row[data-status="未対応"] { border-left-color: #c9a84c; }
+    .ki-row[data-status="調理中"] { border-left-color: #e08030; }
+
+    .ki-table {
+      font-size: .95rem; font-weight: 900; color: #c9a84c;
+      min-width: 36px; flex-shrink: 0;
+    }
+    .ki-qty {
+      font-size: .85rem; font-weight: 700; color: #e8dcc8;
+      flex-shrink: 0;
+    }
+    .ki-time {
+      font-size: .72rem; color: #777; flex-shrink: 0;
+    }
+    .ki-status-badge {
+      font-size: .65rem; font-weight: 700; padding: 2px 7px;
+      border-radius: 10px; flex-shrink: 0; border: 1px solid currentColor;
+    }
+    .ki-status-badge.s-pending  { color: #c9a84c; background: rgba(201,168,76,.12); }
+    .ki-status-badge.s-cooking  { color: #e08030; background: rgba(224,128,48,.12); }
+
+    /* ─── ステータスボタン ─── */
+    .ki-btns {
+      display: flex; gap: 4px; margin-left: auto; flex-shrink: 0;
+    }
+    .ki-btn {
+      padding: 4px 8px; border-radius: 5px; font-size: .65rem; font-weight: 700;
+      cursor: pointer; border: 1px solid #444; background: #1e1e1e; color: #666;
+      font-family: inherit;
+    }
+    .ki-btn.active[data-s="未対応"] { background: rgba(201,168,76,.2); border-color: #c9a84c; color: #c9a84c; }
+    .ki-btn.active[data-s="調理中"] { background: rgba(224,128,48,.2); border-color: #e08030; color: #e08030; }
+    .ki-btn.active[data-s="提供済み"] { background: rgba(80,160,80,.2); border-color: #50a050; color: #6dba6d; }
+  </style>
+</head>
+<body class="kitchen-mode">
+
+<header class="kitchen-header">
+  <div>
+    <div class="kitchen-title">双葉 キッチン</div>
+    <div id="sync-status" style="font-size:.7rem;color:#5a8a6a;margin-top:2px;">接続中...</div>
+  </div>
+  <div id="clock" class="kitchen-time">--:--</div>
+  <div class="kitchen-stats">
+    <div id="stat-pending">未対応: <strong>0</strong></div>
+    <div id="stat-cooking">調理中: <strong>0</strong></div>
+  </div>
+</header>
+
+<nav class="k-nav">
+  <a href="kitchen.html">カード</a>
+  <a href="kitchen-list.html">一覧</a>
+  <a href="kitchen-items.html" class="active">品目別</a>
+</nav>
+
+<div id="items-container" style="padding-bottom:24px;"></div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="firebase.js"></script>
+<script>
+let orders = [];
+
+document.addEventListener('DOMContentLoaded', () => {
+  startClock();
+  ordersRef.onSnapshot(snap => {
+    orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderItems();
+    updateStats();
+    setStatus('接続済み', 'ok');
+  }, err => { console.error(err); setStatus('オフライン', 'error'); });
+});
+
+function setStatus(msg, state) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = state === 'ok' ? '#5a8a6a' : '#c44';
+}
+
+function startClock() {
+  const tick = () => {
+    const d = new Date();
+    document.getElementById('clock').textContent =
+      d.getHours().toString().padStart(2,'0') + ':' +
+      d.getMinutes().toString().padStart(2,'0') + ':' +
+      d.getSeconds().toString().padStart(2,'0');
+  };
+  tick(); setInterval(tick, 1000);
+}
+
+function getTime(o) {
+  if (!o.createdAt) return 0;
+  return o.createdAt.toDate ? o.createdAt.toDate().getTime() : new Date(o.createdAt).getTime();
+}
+
+function renderItems() {
+  const el = document.getElementById('items-container');
+  if (!el) return;
+
+  // 未対応・調理中のみ
+  const active = orders.filter(o => !o.isPaid && (o.status === '未対応' || o.status === '調理中'));
+  active.sort((a, b) => getTime(a) - getTime(b));
+
+  if (!active.length) {
+    el.innerHTML = `<div class="kitchen-empty" style="padding:32px 16px">未対応・調理中の注文はありません</div>`;
+    return;
+  }
+
+  // 品目名でグループ化
+  const itemMap = {}; // { itemName: [ {orderId, tableNumber, qty, status, time, note} ] }
+  active.forEach(o => {
+    (o.items || []).forEach(item => {
+      if (!itemMap[item.name]) itemMap[item.name] = [];
+      itemMap[item.name].push({
+        orderId:     o.id,
+        tableNumber: o.tableNumber,
+        qty:         item.quantity,
+        status:      o.status,
+        time:        o.createdAt,
+      });
+    });
+  });
+
+  el.innerHTML = Object.entries(itemMap).map(([name, entries]) => {
+    const totalQty = entries.reduce((s, e) => s + e.qty, 0);
+    const rows = entries.map(e => {
+      const badgeClass = e.status === '未対応' ? 's-pending' : 's-cooking';
+      const btns = ['未対応','調理中','提供済み'].map(s => `
+        <button class="ki-btn${e.status === s ? ' active' : ''}" data-s="${s}"
+          onclick="updateStatus('${e.orderId}','${s}')">${s}</button>`).join('');
+      return `
+        <div class="ki-row" data-status="${esc(e.status)}">
+          <span class="ki-table">卓${esc(e.tableNumber)}</span>
+          <span class="ki-qty">×${e.qty}</span>
+          <span class="ki-time">${fmtTime(e.time)}</span>
+          <span class="ki-status-badge ${badgeClass}">${esc(e.status)}</span>
+          <div class="ki-btns">${btns}</div>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="ki-section">
+        <div class="ki-item-header">
+          ${esc(name)}
+          <span class="ki-item-count">合計 ×${totalQty}</span>
+        </div>
+        ${rows}
+      </div>`;
+  }).join('');
+}
+
+function updateStatus(id, newStatus) {
+  ordersRef.doc(id).update({ status: newStatus }).catch(err => alert('更新失敗: ' + err.message));
+}
+
+function updateStats() {
+  const active = orders.filter(o => !o.isPaid);
+  const p = active.filter(o => o.status === '未対応').length;
+  const c = active.filter(o => o.status === '調理中').length;
+  document.getElementById('stat-pending').innerHTML =
+    `未対応: <strong style="color:${p ? 'var(--status-pending)' : '#666'}">${p}</strong>`;
+  document.getElementById('stat-cooking').innerHTML =
+    `調理中: <strong style="color:${c ? 'var(--status-cooking)' : '#666'}">${c}</strong>`;
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
