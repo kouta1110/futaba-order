@@ -155,38 +155,36 @@
       background: rgba(201,168,76,.1); border: 1px solid rgba(201,168,76,.2);
       border-radius: 12px; padding: 3px 10px;
     }
-    .history-date-sep {
-      font-size: .72rem; color: #888; font-weight: 700;
-      padding: 10px 16px 4px; letter-spacing: .06em;
+    .hist-card {
+      background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08);
+      border-radius: 10px; margin: 6px 16px; overflow: hidden;
     }
-    .history-card {
-      background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07);
-      border-radius: 8px; margin: 5px 16px; overflow: hidden;
+    .hist-card details > summary { list-style: none; }
+    .hist-card details > summary::-webkit-details-marker { display: none; }
+    .hist-summary {
+      display: flex; align-items: center; gap: 10px;
+      padding: 13px 14px 11px; cursor: pointer;
     }
-    .history-card-header {
-      display: flex; align-items: baseline; gap: 10px;
-      padding: 10px 14px 6px;
-      border-bottom: 1px solid rgba(255,255,255,.06);
+    .hist-summary:active { background: rgba(255,255,255,.03); }
+    .hist-left  { flex: 1; min-width: 0; }
+    .hist-right { text-align: right; flex-shrink: 0; }
+    .hist-tablenum { font-size: 1.15rem; font-weight: 700; color: #c9a84c; }
+    .hist-name     { font-size: .75rem; color: #888; margin-top: 1px; }
+    .hist-time     { font-size: .72rem; color: #999; }
+    .hist-total    { font-size: 1rem; font-weight: 700; color: #c9a84c; margin-top: 2px; }
+    .hist-arrow    { font-size: .7rem; color: #666; transition: transform .2s; flex-shrink: 0; }
+    .hist-card details[open] .hist-arrow { transform: rotate(90deg); }
+    .hist-items {
+      border-top: 1px solid rgba(255,255,255,.07); padding: 6px 14px 8px;
     }
-    .history-card-table { font-size: 1rem; font-weight: 700; color: #c9a84c; }
-    .history-card-memo  { font-size: .75rem; color: #888; flex: 1; min-width: 0;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .history-card-time  { font-size: .72rem; color: #666; flex-shrink: 0; }
-    .history-card-items { padding: 6px 14px; }
-    .history-card-item  {
-      display: flex; gap: 8px; padding: 4px 0;
-      font-size: .82rem; color: #b0a890;
-      border-bottom: 1px solid rgba(255,255,255,.04);
+    .hist-item-row {
+      display: flex; align-items: center; gap: 8px; padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,.04); font-size: .85rem;
     }
-    .history-card-item:last-child { border-bottom: none; }
-    .history-card-item-name { flex: 1; }
-    .history-card-item-qty  { color: #888; white-space: nowrap; }
-    .history-card-item-sub  { color: #c8b870; white-space: nowrap; }
-    .history-card-total {
-      display: flex; justify-content: space-between;
-      padding: 7px 14px; background: rgba(0,0,0,.15);
-      font-size: .88rem; font-weight: 700; color: #c9a84c;
-    }
+    .hist-item-row:last-child { border-bottom: none; }
+    .hist-item-name { flex: 1; color: #c8bfa8; }
+    .hist-item-qty  { color: #888; white-space: nowrap; }
+    .hist-item-sub  { color: #c8b870; font-weight: 600; white-space: nowrap; }
   </style>
 </head>
 <body>
@@ -670,60 +668,82 @@ function renderHistory() {
   let paid = orders.filter(o => o.isPaid);
   if (searchVal) paid = paid.filter(o => o.tableNumber.startsWith(searchVal));
 
-  // 件数バッジ
   const badge = document.getElementById('history-total-badge');
-  if (badge) {
-    const totalAmount = paid.reduce((s, o) => s + (o.totalPrice || 0), 0);
-    badge.textContent = paid.length ? `${paid.length}件 / ${yen(totalAmount)}` : '';
-  }
 
   if (!paid.length) {
+    if (badge) badge.textContent = '';
     el.innerHTML = `<div class="empty-text" style="padding:24px 16px">会計済みの記録はありません</div>`;
     return;
   }
 
-  // 新しい順
-  paid.sort((a, b) => {
-    const ta = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-    const tb = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
-    return tb - ta;
-  });
-
-  // 日付ごとにグループ
-  const byDate = {};
+  // 卓番でグループ化
+  const groups = {};
   paid.forEach(o => {
-    const d = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt || 0);
-    const key = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
-    if (!byDate[key]) byDate[key] = [];
-    byDate[key].push(o);
+    const key = o.tableNumber;
+    if (!groups[key]) groups[key] = { tableNumber: key, name: '', ordersList: [], itemMap: {}, total: 0 };
+    const g = groups[key];
+    g.ordersList.push(o);
+    g.total += o.totalPrice || 0;
+    if (!g.name) g.name = o.tableNote || o.orderNote || '';
+    (o.items || []).forEach(i => {
+      if (!g.itemMap[i.name]) g.itemMap[i.name] = { price: i.price, qty: 0 };
+      g.itemMap[i.name].qty += i.quantity;
+    });
   });
 
-  el.innerHTML = Object.entries(byDate).map(([date, list]) => {
-    const dayTotal = list.reduce((s, o) => s + (o.totalPrice || 0), 0);
-    const cards = list.map(o => {
-      const itemRows = (o.items || []).map(i => `
-        <div class="history-card-item">
-          <span class="history-card-item-name">${esc(i.name)}</span>
-          <span class="history-card-item-qty">×${i.quantity}</span>
-          <span class="history-card-item-sub">${yen(i.price * i.quantity)}</span>
-        </div>`).join('');
-      const memo = o.orderNote ? ` — ${o.orderNote}` : '';
-      return `
-        <div class="history-card">
-          <div class="history-card-header">
-            <span class="history-card-table">卓${esc(o.tableNumber)}</span>
-            <span class="history-card-memo">${esc(memo)}</span>
-            <span class="history-card-time">${fmtTime(o.createdAt)}</span>
-          </div>
-          <div class="history-card-items">${itemRows}</div>
-          <div class="history-card-total">
-            <span>合計</span><span>${yen(o.totalPrice)}</span>
-          </div>
-        </div>`;
-    }).join('');
+  // 最終注文時間で降順ソート（直近の会計が上）
+  const toMs = o => {
+    if (!o.createdAt) return 0;
+    return o.createdAt.toDate ? o.createdAt.toDate().getTime() : new Date(o.createdAt).getTime();
+  };
+  const groupList = Object.values(groups).sort((a, b) => {
+    const latestA = Math.max(...a.ordersList.map(toMs));
+    const latestB = Math.max(...b.ordersList.map(toMs));
+    return latestB - latestA;
+  });
+
+  // バッジ
+  if (badge) {
+    const totalAmt = groupList.reduce((s, g) => s + g.total, 0);
+    badge.textContent = `${groupList.length}卓 / ${yen(totalAmt)}`;
+  }
+
+  el.innerHTML = groupList.map(g => {
+    const times   = g.ordersList.map(toMs).filter(Boolean);
+    const minTime = times.length ? Math.min(...times) : null;
+    const maxTime = times.length ? Math.max(...times) : null;
+    const fmt = ms => {
+      const d = new Date(ms);
+      return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+    };
+    const timeRange = minTime
+      ? (maxTime !== minTime ? `${fmt(minTime)} 〜 ${fmt(maxTime)}` : fmt(minTime))
+      : '--:--';
+
+    const itemRows = Object.entries(g.itemMap).map(([name, {price, qty}]) => `
+      <div class="hist-item-row">
+        <span class="hist-item-name">${esc(name)}</span>
+        <span class="hist-item-qty">×${qty}</span>
+        <span class="hist-item-sub">${yen(price * qty)}</span>
+      </div>`).join('');
+
     return `
-      <div class="history-date-sep">📅 ${date} — ${yen(dayTotal)}</div>
-      ${cards}`;
+      <div class="hist-card">
+        <details>
+          <summary class="hist-summary">
+            <div class="hist-left">
+              <div class="hist-tablenum">卓 ${esc(g.tableNumber)}</div>
+              <div class="hist-name">${esc(g.name || '名前なし')}</div>
+            </div>
+            <div class="hist-right">
+              <div class="hist-time">${timeRange}</div>
+              <div class="hist-total">${yen(g.total)}</div>
+            </div>
+            <span class="hist-arrow">▶</span>
+          </summary>
+          <div class="hist-items">${itemRows}</div>
+        </details>
+      </div>`;
   }).join('');
 }
 
