@@ -331,16 +331,9 @@ let selTableNum = null, qty = {}, itemNotes = {};
 const priceOverrides = {};
 
 // ── 起動 ──────────────────────────────────
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
   setStatus('接続中...');
-  try {
-    const snap = await tablesRef.limit(1).get();
-    if (snap.empty) await seed();
-    setupListeners();
-  } catch(e) {
-    setStatus('接続エラー', 'error');
-    console.error(e);
-  }
+  setupListeners();
 });
 
 // ── リアルタイムリスナー ───────────────────
