@@ -393,7 +393,6 @@ function menuNav(tab) {
   closeMenu();
   switchTab(tab);
   if (tab === 'billing') renderBilling();
-  if (tab === 'history') renderHistory();
 }
 
 // ── タブ切り替え ──────────────────────────
@@ -439,6 +438,7 @@ function openBillingForTable(tableNumber) {
 
 function openOrderForTable(tableNumber) {
   switchTab('order'); showOrderForm();
+  qty = {}; itemNotes = {}; // 前の卓の数量・メモをリセット
   document.getElementById('inp-tablenum').value = tableNumber;
   onTableNumInput();
   document.getElementById('inp-tablenum').focus();
@@ -555,6 +555,8 @@ async function submitOrder() {
   if (!items.length) return;
   const t    = tables.find(x => x.tableNumber === selTableNum);
   const memo = document.getElementById('inp-memo').value.trim();
+  const submitBtn = document.querySelector('#order-preview .btn-primary');
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '送信中...'; }
   try {
     const newOrderRef = ordersRef.doc();
     const orderBatch = db.batch();
@@ -581,7 +583,10 @@ async function submitOrder() {
     showOrderForm();
     toast('注文を送信しました！', 'success');
     switchTab('tables');
-  } catch(e) { toast('送信エラー: ' + e.message, 'error'); }
+  } catch(e) {
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '送信する'; }
+    toast('送信エラー: ' + e.message, 'error');
+  }
 }
 
 // ── 会計確認 ──────────────────────────────
@@ -621,8 +626,6 @@ function renderBilling() {
     return;
   }
   el.innerHTML = list.map(g => {
-    const pp = g.guestCount > 0
-      ? `<div class="billing-per-person">1人あたり ${yen(Math.ceil(g.total / g.guestCount))}</div>` : '';
     const itemRows = Object.entries(g.itemMap).map(([name, {price, qty, notes}]) => {
       const key = `${g.tableNumber}|${name}`;
       const effPrice = priceOverrides[key] !== undefined ? priceOverrides[key] : price;
@@ -832,12 +835,14 @@ function downloadHistoryCSV() {
     return parseInt(a.tableNumber) - parseInt(b.tableNumber);
   });
 
-  const rows = [['卓番', '卓名', '受注時間', '品目', '数量', '単価', '小計', '卓合計']];
+  const rows = [['卓番', '卓名', '受注時間', '品目', '数量', '単価', '小計', '卓合計', '備考']];
   groupList.forEach(g => {
     const times = g.ordersList.map(toMs).filter(Boolean);
     const minT = times.length ? Math.min(...times) : null;
     const maxT = times.length ? Math.max(...times) : null;
     const timeRange = minT ? (maxT !== minT ? `${fmt(minT)}〜${fmt(maxT)}` : fmt(minT)) : '';
+    const itemizedTotal = Object.values(g.itemMap).reduce((s, {price, qty}) => s + price * qty, 0);
+    const hasDiscount = g.total !== itemizedTotal;
     Object.entries(g.itemMap).forEach(([name, {price, qty}], idx) => {
       rows.push([
         g.tableNumber,
@@ -848,6 +853,7 @@ function downloadHistoryCSV() {
         price,
         price * qty,
         idx === 0 ? g.total : '',
+        idx === 0 && hasDiscount ? `値引きあり(定価合計${yen(itemizedTotal)})` : '',
       ]);
     });
   });
@@ -972,8 +978,11 @@ async function resetMenus() {
       {name:'レモンサワー',                    price:600,  category:'ドリンク',      isVisible:true,isSoldOut:false,order:10},
       {name:'ウーロンハイ',                    price:600,  category:'ドリンク',      isVisible:true,isSoldOut:false,order:11},
       {name:'ジャスミンハイ',                  price:600,  category:'ドリンク',      isVisible:true,isSoldOut:false,order:12},
-      {name:'グラスワイン',                    price:700,  category:'ドリンク',      isVisible:true,isSoldOut:false,order:13},
-      {name:'ボトルワイン',                    price:3000, category:'ドリンク',      isVisible:true,isSoldOut:false,order:14},
+      {name:'グラスワイン(赤・白)',             price:1000, category:'ドリンク',      isVisible:true,isSoldOut:false,order:13},
+      {name:'周年限定グラスワイン(赤・白)',    price:3000, category:'ドリンク',      isVisible:true,isSoldOut:false,order:14},
+      {name:'ボトルワイン梅',                  price:6000,  category:'ドリンク',      isVisible:true,isSoldOut:false,order:15},
+      {name:'ボトルワイン竹',                  price:10000, category:'ドリンク',      isVisible:true,isSoldOut:false,order:16},
+      {name:'ボトルワイン松',                  price:12000, category:'ドリンク',      isVisible:true,isSoldOut:false,order:17},
     ].forEach(m => b2.set(menusRef.doc(), m));
     await b2.commit();
     toast('メニューを更新しました！', 'success');
