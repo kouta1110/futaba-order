@@ -918,8 +918,9 @@ async function seed() {
     {name:'レモンサワー',                    price:600,  category:'ドリンク',      isVisible:true,isSoldOut:false,order:10},
     {name:'ウーロンハイ',                    price:600,  category:'ドリンク',      isVisible:true,isSoldOut:false,order:11},
     {name:'ジャスミンハイ',                  price:600,  category:'ドリンク',      isVisible:true,isSoldOut:false,order:12},
-    {name:'グラスワイン',                    price:700,  category:'ドリンク',      isVisible:true,isSoldOut:false,order:13},
-    {name:'ボトルワイン',                    price:3000, category:'ドリンク',      isVisible:true,isSoldOut:false,order:14},
+    {name:'グラスワイン(赤・白)',             price:1000, category:'ドリンク',      isVisible:true,isSoldOut:false,order:13},
+    {name:'周年限定グラスワイン(赤・白)',    price:3000, category:'ドリンク',      isVisible:true,isSoldOut:false,order:14},
+    {name:'ボトルワイン',                    price:3000, category:'ドリンク',      isVisible:true,isSoldOut:false,order:15},
   ].forEach(m => b.set(menusRef.doc(), m));
   await b.commit();
 }
