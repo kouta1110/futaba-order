@@ -72,7 +72,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // Firestore リアルタイムリスナー
 // ========================================
 function setupListener() {
-  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const todayStart = new Date();
+  if (todayStart.getHours() < 5) todayStart.setDate(todayStart.getDate() - 1);
+  todayStart.setHours(5,0,0,0);
   ordersRef.where('createdAt', '>=', todayStart).onSnapshot(
     snap => {
       orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
