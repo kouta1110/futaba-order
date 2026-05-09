@@ -299,7 +299,15 @@
   <section id="tab-history" class="tab-panel">
     <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between;padding-right:16px;">
       <h2 class="panel-title">会計履歴</h2>
-      <span id="history-total-badge" class="history-total-badge"></span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="history-total-badge" class="history-total-badge"></span>
+        <button onclick="downloadHistoryCSV()" style="
+          background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.35);
+          color:var(--gold);font-size:.75rem;font-weight:700;padding:5px 11px;
+          border-radius:5px;cursor:pointer;font-family:inherit;">
+          ⬇ CSV
+        </button>
+      </div>
     </div>
     <div class="billing-search-wrap">
       <input id="history-search" type="text" inputmode="numeric" class="form-input"
@@ -785,6 +793,73 @@ function renderHistory() {
         </details>
       </div>`;
   }).join('');
+}
+
+// ── 会計履歴 CSV ──────────────────────────
+function downloadHistoryCSV() {
+  const paid = orders.filter(o => o.isPaid);
+  if (!paid.length) { toast('会計履歴がありません', 'error'); return; }
+
+  const toMs = o => {
+    if (!o.createdAt) return 0;
+    return o.createdAt.toDate ? o.createdAt.toDate().getTime() : new Date(o.createdAt).getTime();
+  };
+  const fmt = ms => {
+    const d = new Date(ms);
+    return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+  };
+
+  // 卓番でグループ化
+  const groups = {};
+  paid.forEach(o => {
+    const key = o.tableNumber;
+    if (!groups[key]) groups[key] = { tableNumber: key, name: '', ordersList: [], itemMap: {}, total: 0 };
+    const g = groups[key];
+    g.ordersList.push(o);
+    g.total += (o.effectiveTotalPrice ?? o.totalPrice) || 0;
+    if (!g.name) g.name = o.tableNote || o.orderNote || '';
+    (o.items || []).forEach(i => {
+      if (!g.itemMap[i.name]) g.itemMap[i.name] = { price: i.price, qty: 0 };
+      g.itemMap[i.name].qty += i.quantity;
+    });
+  });
+
+  const groupList = Object.values(groups).sort((a, b) => {
+    const la = Math.max(...a.ordersList.map(toMs));
+    const lb = Math.max(...b.ordersList.map(toMs));
+    return parseInt(a.tableNumber) - parseInt(b.tableNumber);
+  });
+
+  const rows = [['卓番', '卓名', '受注時間', '品目', '数量', '単価', '小計', '卓合計']];
+  groupList.forEach(g => {
+    const times = g.ordersList.map(toMs).filter(Boolean);
+    const minT = times.length ? Math.min(...times) : null;
+    const maxT = times.length ? Math.max(...times) : null;
+    const timeRange = minT ? (maxT !== minT ? `${fmt(minT)}〜${fmt(maxT)}` : fmt(minT)) : '';
+    Object.entries(g.itemMap).forEach(([name, {price, qty}], idx) => {
+      rows.push([
+        g.tableNumber,
+        g.name || '名前なし',
+        idx === 0 ? timeRange : '',
+        name,
+        qty,
+        price,
+        price * qty,
+        idx === 0 ? g.total : '',
+      ]);
+    });
+  });
+
+  const csv = '﻿' + rows.map(r =>
+    r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+  ).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const date = new Date().toLocaleDateString('ja-JP').replace(/\//g, '');
+  a.href = url; a.download = `双葉_会計履歴_${date}.csv`; a.click();
+  URL.revokeObjectURL(url);
+  toast('CSVをダウンロードしました', 'success');
 }
 
 // ── ユーティリティ ────────────────────────
